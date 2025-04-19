@@ -141,5 +141,78 @@
       }
     });
   </script>
+
+  <!-- Inline Script to Handle Like/Dislike -->
+  <script>
+    let currentBookId = null;
+  
+    async function handleLikeDislike(bookId, action) {
+  try {
+    const res = await fetch(`/books/${bookId}/${action}`, { method: 'POST' });
+    if (!res.ok) throw new Error('Failed to update');
+
+    const updated = await res.json();
+    const likes = updated.likes || 0;
+    const dislikes = updated.dislikes || 0;
+
+    setUserAction(bookId, action);
+    updateLikeUI(likes, dislikes, action);
+    syncLikeDislikeAcrossPages(bookId, likes, dislikes, action);
+  } catch (err) {
+    console.error(err);
+  }
+}
+  
+    function updateLikeUI(likes, dislikes, activeAction) {
+      document.getElementById('like-count').innerText = likes;
+      document.getElementById('dislike-count').innerText = dislikes;
+  
+      document.querySelector('.like-button').classList.toggle('active', activeAction === 'like');
+      document.querySelector('.dislike-button').classList.toggle('active', activeAction === 'dislike');
+    }
+  
+    function syncLikeDislikeAcrossPages(bookId, likes, dislikes, action) {
+  const likeBtn = document.querySelector(`#book-${bookId} .like-button`);
+  const dislikeBtn = document.querySelector(`#book-${bookId} .dislike-button`);
+
+  if (likeBtn) {
+    likeBtn.classList.toggle('active', action === 'like');
+    likeBtn.innerHTML = `<i class="fas fa-thumbs-up"></i> ${likes}`;
+  }
+  if (dislikeBtn) {
+    dislikeBtn.classList.toggle('active', action === 'dislike');
+    dislikeBtn.innerHTML = `<i class="fas fa-thumbs-down"></i> ${dislikes}`;
+  }
+}
+
+  
+    document.addEventListener('DOMContentLoaded', async () => {
+  const params = new URLSearchParams(window.location.search);
+  currentBookId = params.get('bookId');
+  if (!currentBookId) return alert('Book ID is missing!');
+
+  try {
+    const res = await fetch(`/books/${currentBookId}`);
+    const book = await res.json();
+
+    // Fallbacks for undefined counts
+    const likes = book.likes || 0;
+    const dislikes = book.dislikes || 0;
+    updateLikeUI(likes, dislikes, getUserAction(currentBookId));
+  } catch (err) {
+    console.error('Failed to load book details:', err);
+  }
+});
+
+function setUserAction(bookId, action) {
+  localStorage.setItem(`book-${bookId}-reaction`, action);
+}
+
+function getUserAction(bookId) {
+  return localStorage.getItem(`book-${bookId}-reaction`);
+}
+
+  </script>
+  
 </body>
 </html>
