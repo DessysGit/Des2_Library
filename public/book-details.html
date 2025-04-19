@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Book Details</title>
+
+  <!-- Bootstrap & Font Awesome -->
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"/>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+
+<body>
+  <!-- Header -->
+  <header class="header text-center">
+    <div class="container">
+      <h1 class="stylish-logo">Des2 Library</h1>
+      <p class="slogan">Your Gateway to Infinite Knowledge</p>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <div id="sidebar" class="sidebar">
+    <a href="javascript:void(0)" class="closebtn" onclick="toggleMenu()">&times;</a>
+    <div class="sidebar-header">
+      <img id="burger-profile-picture" src="" alt="Profile Picture" style="width: 80px; height: 80px; border-radius: 50%;">
+      <p id="burger-username">Username</p>
+    </div>
+    <a href="index.html">Back to Main Page</a>
+  </div>
+
+  <!-- Hamburger Button -->
+  <button id="hamburger-button" class="hamburger" onclick="toggleMenu()" style="display: none;">&#9776;</button>
+
+  <!-- Book Details Section -->
+  <section id="book-details-section" class="container my-5">
+    <div class="card bg-dark text-white p-4 rounded shadow-lg border-0">
+      <div class="row align-items-center">
+        <div class="col-md-4 text-center mb-3 mb-md-0">
+          <img id="book-details-cover" src="" alt="Book Cover" class="img-fluid rounded shadow" style="max-height: 350px; object-fit: cover;">
+          <a id="book-details-download" href="#" class="btn btn-success mt-3 w-100" download>
+            <i class="fas fa-download"></i> Download Book
+          </a>
+        </div>
+        <div class="col-md-8">
+          <h2 id="book-details-title" class="text-success mb-3">Book Title</h2>
+          <p><strong>Author:</strong> <span id="book-details-author">Author Name</span></p>
+          <p><strong>Genres:</strong> <span id="book-details-genres">Genres</span></p>
+          <hr class="bg-light"/>
+          <p><strong>Summary:</strong></p>
+          <p id="book-details-summary" class="text-muted">Brief summary of the book...</p>
+        </div>
+      </div>
+
+      <!-- Like/Dislike Buttons -->
+<div class="like-dislike-buttons mt-4 justify-content-center" id="like-dislike-section">
+    <button class="like-button" onclick="handleLikeDislike(currentBookId, 'like')">
+      <i class="fas fa-thumbs-up"></i> <span id="like-count">0</span>
+    </button>
+    <button class="dislike-button" onclick="handleLikeDislike(currentBookId, 'dislike')">
+      <i class="fas fa-thumbs-down"></i> <span id="dislike-count">0</span>
+    </button>
+  </div>
+  
+
+      <!-- Admin Edit Panel -->
+      <div id="admin-edit-fields" class="mt-4" style="display: none;" data-book-id="">
+        <h4 class="text-warning">Edit Book Info</h4>
+        <div class="row">
+          <div class="col-md-6">
+            <label for="edit-title">Title</label>
+            <input type="text" id="edit-title" class="form-control mb-2">
+          </div>
+          <div class="col-md-6">
+            <label for="edit-author">Author</label>
+            <input type="text" id="edit-author" class="form-control mb-2">
+          </div>
+          <div class="col-md-6">
+            <label for="edit-genres">Genres</label>
+            <input type="text" id="edit-genres" class="form-control mb-2">
+          </div>
+          <div class="col-md-6">
+            <label for="edit-summary">Summary</label>
+            <textarea id="edit-summary" class="form-control mb-2" rows="2"></textarea>
+          </div>
+          <div class="col-12">
+            <button onclick="saveBookDetails()" class="btn btn-primary w-100 mt-3">Save Changes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer mt-5" id="footer">
+    <div class="container text-center">
+      <p>&copy; 2025 Des2 Library. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+  <script src="script.js"></script>
+
+  <!-- Inline Script to Load Book Data -->
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const bookId = urlParams.get('bookId');
+      if (!bookId) return alert('Book ID is missing!');
+
+      try {
+        const res = await fetch(`/books/${bookId}`);
+        if (!res.ok) throw new Error('Failed to load book.');
+        const book = await res.json();
+
+        document.getElementById('book-details-title').innerText = book.title;
+        document.getElementById('book-details-author').innerText = book.author;
+        document.getElementById('book-details-genres').innerText = book.genres;
+        document.getElementById('book-details-summary').innerText = book.summary || 'No summary provided.';
+        document.getElementById('book-details-cover').src = `/uploads/${book.cover}`;
+        document.getElementById('book-details-download').href = `/uploads/${book.file}`;
+        document.getElementById('admin-edit-fields').setAttribute('data-book-id', bookId);
+
+        const userRes = await fetch('/current-user');
+        if (userRes.ok) {
+          const user = await userRes.json();
+          if (user.role === 'admin') {
+            document.getElementById('admin-edit-fields').style.display = 'block';
+            document.getElementById('edit-title').value = book.title;
+            document.getElementById('edit-author').value = book.author;
+            document.getElementById('edit-genres').value = book.genres;
+            document.getElementById('edit-summary').value = book.summary || '';
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Error loading book details.');
+      }
+    });
+  </script>
+</body>
+</html>
