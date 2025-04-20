@@ -74,6 +74,7 @@ def recommendations():
         return jsonify({"recommendations": recommendations})
 
     activity_df = books_to_df(user_activity)
+    activity_df['content'] = activity_df['content'].fillna('')  # Handle missing values in the 'content' column
     activity_tfidf_matrix = tfidf.transform(activity_df['content'])
     activity_cosine_sim = linear_kernel(activity_tfidf_matrix, tfidf_matrix)
 

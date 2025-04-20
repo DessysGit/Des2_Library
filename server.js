@@ -89,6 +89,17 @@ db.run(`CREATE TABLE IF NOT EXISTS likes (
     UNIQUE(userId, bookId)
 )`);
 
+// Create Reviews table if it doesn't exist
+db.run(`CREATE TABLE IF NOT EXISTS reviews (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    bookId INTEGER,
+    userId INTEGER,
+    username TEXT,
+    text TEXT,
+    FOREIGN KEY(bookId) REFERENCES books(id),
+    FOREIGN KEY(userId) REFERENCES users(id)
+)`);
+
 // Seed admin user if not exists
 const seedAdmin = async () => {
     db.get('SELECT COUNT(*) AS count FROM users WHERE username = ?', ['admin'], async (err, row) => {
@@ -292,6 +303,10 @@ app.get('/books/:id', (req, res) => {
         if (!row) {
             return res.status(404).send('Book not found');
         }
+
+        // Add full paths for cover and file
+        row.cover = `/uploads/${row.cover}`;
+        row.file = `/uploads/${row.file}`;
         res.json(row);
     });
 });
@@ -437,7 +452,14 @@ app.put('/books/:id', isAdmin, (req, res) => {
                 console.error('Error editing book:', err);
                 res.status(500).send('Failed to edit book');
             } else {
-                res.status(200).send('Book edited successfully');
+                db.get('SELECT * FROM books WHERE id = ?', [bookId], (err, updatedBook) => {
+                    if (err) {
+                        console.error('Error fetching updated book:', err);
+                        res.status(500).send('Failed to fetch updated book');
+                    } else {
+                        res.json(updatedBook); // Return updated book details
+                    }
+                });
             }
         }
     );
@@ -604,15 +626,73 @@ app.delete('/users/:id', isAdmin, (req, res) => {
 // Endpoint for recommended books
 app.get("/recommendations", isAuthenticated, async (req, res) => {
     const userId = req.user.id;
-    if (!userId) return res.status(400).json({ error: "User ID is required" });
+    const currentBookId = req.query.bookId; // Get the current book ID from the query parameter
+
+    if (!userId) {
+        console.error("User ID is missing in the request.");
+        return res.status(400).json({ error: "User ID is required" });
+    }
 
     try {
         const response = await axios.get(`http://127.0.0.1:5000/recommendations?user_id=${encodeURIComponent(userId)}`);
-        res.json(response.data);
+        if (response.data && response.data.recommendations) {
+            // Exclude the current book and limit to 4 recommendations
+            const filteredRecommendations = response.data.recommendations
+                .filter((book) => book.id !== parseInt(currentBookId))
+                .slice(0, 4);
+            res.json({ recommendations: filteredRecommendations });
+        } else {
+            console.warn("No recommendations returned from the external service.");
+            res.json({ recommendations: [] });
+        }
     } catch (error) {
-        console.error('Error fetching recommendations:', error.response ? error.response.data : error.message); // Log detailed error
-        res.status(500).json({ error: "Error fetching recommendations" });
+        console.error("Error fetching recommendations:", error.response?.data || error.message);
+
+        // Fallback: Return up to 4 sample recommendations excluding the current book
+        db.all(
+            'SELECT id, title, description, cover FROM books WHERE id != ? LIMIT 4',
+            [currentBookId],
+            (err, rows) => {
+                if (err) {
+                    console.error("Error fetching fallback recommendations:", err.message);
+                    return res.status(500).json({ error: "Error fetching recommendations" });
+                }
+                res.json({ recommendations: rows });
+            }
+        );
     }
+});
+
+// Endpoint to fetch reviews for a book
+app.get('/books/:id/reviews', (req, res) => {
+    const bookId = req.params.id;
+    db.all('SELECT username, text FROM reviews WHERE bookId = ?', [bookId], (err, rows) => {
+        if (err) {
+            console.error('Error fetching reviews:', err);
+            return res.status(500).send('Failed to fetch reviews');
+        }
+        res.json(rows);
+    });
+});
+
+// Endpoint to submit a review for a book
+app.post('/books/:id/reviews', isAuthenticated, (req, res) => {
+    const bookId = req.params.id;
+    const userId = req.user.id;
+    const username = req.user.username;
+    const { text } = req.body;
+
+    if (!text || text.trim() === "") {
+        return res.status(400).send('Review text cannot be empty');
+    }
+
+    db.run('INSERT INTO reviews (bookId, userId, username, text) VALUES (?, ?, ?, ?)', [bookId, userId, username, text], function (err) {
+        if (err) {
+            console.error('Error submitting review:', err);
+            return res.status(500).send('Failed to submit review');
+        }
+        res.status(201).send('Review submitted successfully');
+    });
 });
 
 // Serve static files

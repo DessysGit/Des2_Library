@@ -84,6 +84,10 @@
             <label for="edit-summary">Summary</label>
             <textarea id="edit-summary" class="form-control mb-2" rows="2"></textarea>
           </div>
+          <div class="col-md-6">
+            <label for="edit-description">Description</label>
+            <textarea id="edit-description" class="form-control mb-2" rows="3"></textarea>
+          </div>
           <div class="col-12">
             <button onclick="saveBookDetails()" class="btn btn-primary w-100 mt-3">Save Changes</button>
           </div>
@@ -92,12 +96,79 @@
     </div>
   </section>
 
-  <!-- Footer -->
-  <footer class="footer mt-5" id="footer">
-    <div class="container text-center">
-      <p>&copy; 2025 Des2 Library. All rights reserved.</p>
+  <!-- Review Section -->
+<section id="review-section" class="container my-5">
+  <h2 class="text-center">Reviews</h2>
+  <div id="reviews-container" class="mt-4">
+    <!-- Reviews will be dynamically loaded here -->
+  </div>
+  <div class="card mt-4">
+    <div class="card-body">
+      <h5 class="card-title">Leave a Review</h5>
+      <textarea id="review-text" class="form-control mb-3" rows="3" placeholder="Write your review here..."></textarea>
+      <button onclick="submitReview()" class="btn btn-primary w-100">Submit Review</button>
     </div>
-  </footer>
+  </div>
+</section>
+
+  <!-- Recommendations Section -->
+  <section id="recommendations-section" class="mt-5">
+  <div class="container">
+    <!-- Green line at the top -->
+    <hr style="border: 2px solid green; margin: 1rem 0;">
+
+    <h2 class="text-center">Recommended Books</h2>
+    <div id="recommendations-container" class="mt-4">
+      <!-- Dynamic content will be added here -->
+    </div>
+
+    <!-- Green line at the bottom -->
+    <hr style="border: 2px solid green; margin: 1rem 0;">
+  </div>
+</section>
+
+<!-- Yellow line to separate recommendations and footer 
+<hr style="border: 2px solid yellow; margin: 2rem 0;">  -->
+
+  <!-- Footer -->
+  <footer class="footer mt-4" id="footer">
+    <div class="container">
+        <div class="row">
+            <!-- About Section -->
+            <div class="col-md-4">
+                <h5>About Us</h5>
+                <p>Our library provides a rich collection of books, ebooks, and resources to support your reading journey. Whether you're a student, a book lover, or just curious, we're here to help you find what you need.</p>
+            </div>
+            <!-- Quick Links Section -->
+            <div class="col-md-4">
+                <h5>Quick Links</h5>
+                <ul class="list-unstyled">
+                    <li><a href="javascript:void(0)" onclick="logout()">Logout</a></li>
+                </ul>
+            </div>
+            <!-- Contact Section -->
+            <div class="col-md-4">
+                <h5>Contact Us</h5>
+                <address>
+                    <strong>Library</strong><br>
+                    Accra, Ghana<br>
+                    Ablekuma<br>
+                    <abbr title="Phone">Tel:</abbr> 050 0867 832<br>
+                    <a href="mailto:dessy6digit@gmail.com">info@library.com</a>
+                </address>
+                <h5>Follow Us</h5>
+                <a href="#" class="social-icon"><i class="fab fa-facebook-f"></i></a>
+                <a href="#" class="social-icon"><i class="fab fa-twitter"></i></a>
+                <a href="#" class="social-icon"><i class="fab fa-instagram"></i></a>
+            </div>
+        </div>
+        <div class="row mt-4">
+            <div class="col-md-12 text-center">
+                <p>&copy; 2025 Library. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+</footer>
 
   <!-- Scripts -->
   <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
@@ -106,63 +177,70 @@
 
   <!-- Inline Script to Load Book Data -->
   <script>
+    let currentBookId = null;
+
     document.addEventListener('DOMContentLoaded', async () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const bookId = urlParams.get('bookId');
-      if (!bookId) return alert('Book ID is missing!');
+      currentBookId = urlParams.get('bookId');
+      if (!currentBookId) return alert('Book ID is missing!');
 
       try {
-        const res = await fetch(`/books/${bookId}`);
+        const res = await fetch(`/books/${currentBookId}`);
         if (!res.ok) throw new Error('Failed to load book.');
         const book = await res.json();
 
+        // Update book details
         document.getElementById('book-details-title').innerText = book.title;
         document.getElementById('book-details-author').innerText = book.author;
         document.getElementById('book-details-genres').innerText = book.genres;
         document.getElementById('book-details-summary').innerText = book.summary || 'No summary provided.';
-        document.getElementById('book-details-cover').src = `/uploads/${book.cover}`;
-        document.getElementById('book-details-download').href = `/uploads/${book.file}`;
-        document.getElementById('admin-edit-fields').setAttribute('data-book-id', bookId);
+        document.getElementById('book-details-cover').src = book.cover;
+        document.getElementById('book-details-download').href = book.file;
 
-        const userRes = await fetch('/current-user');
-        if (userRes.ok) {
-          const user = await userRes.json();
-          if (user.role === 'admin') {
-            document.getElementById('admin-edit-fields').style.display = 'block';
-            document.getElementById('edit-title').value = book.title;
-            document.getElementById('edit-author').value = book.author;
-            document.getElementById('edit-genres').value = book.genres;
-            document.getElementById('edit-summary').value = book.summary || '';
-          }
-        }
+        // Update likes and dislikes
+        document.getElementById('like-count').innerText = book.likes || 0;
+        document.getElementById('dislike-count').innerText = book.dislikes || 0;
       } catch (err) {
-        console.error(err);
+        console.error('Failed to load book details:', err);
         alert('Error loading book details.');
       }
     });
-  </script>
 
-  <!-- Inline Script to Handle Like/Dislike -->
-  <script>
-    let currentBookId = null;
-  
     async function handleLikeDislike(bookId, action) {
-  try {
-    const res = await fetch(`/books/${bookId}/${action}`, { method: 'POST' });
-    if (!res.ok) throw new Error('Failed to update');
+      try {
+        const res = await fetch(`/books/${bookId}/${action}`, { method: 'POST' });
+        if (!res.ok) throw new Error('Failed to update');
 
-    const updated = await res.json();
-    const likes = updated.likes || 0;
-    const dislikes = updated.dislikes || 0;
+        const updated = await res.json();
+        const likes = updated.likes || 0;
+        const dislikes = updated.dislikes || 0;
 
-    setUserAction(bookId, action);
-    updateLikeUI(likes, dislikes, action);
-    syncLikeDislikeAcrossPages(bookId, likes, dislikes, action);
-  } catch (err) {
-    console.error(err);
-  }
-}
-  
+        // Update UI
+        document.getElementById('like-count').innerText = likes;
+        document.getElementById('dislike-count').innerText = dislikes;
+
+        // Sync likes/dislikes across pages
+        syncLikeDislikeAcrossPages(bookId, likes, dislikes, action);
+      } catch (err) {
+        console.error(err);
+        alert('Failed to update like/dislike.');
+      }
+    }
+
+    function syncLikeDislikeAcrossPages(bookId, likes, dislikes, action) {
+      const likeBtn = document.querySelector(`#book-${bookId} .like-button`);
+      const dislikeBtn = document.querySelector(`#book-${bookId} .dislike-button`);
+
+      if (likeBtn) {
+        likeBtn.classList.toggle('active', action === 'like');
+        likeBtn.innerHTML = `👍 ${likes}`;
+      }
+      if (dislikeBtn) {
+        dislikeBtn.classList.toggle('active', action === 'dislike');
+        dislikeBtn.innerHTML = `👎 ${dislikes}`;
+      }
+    }
+
     function updateLikeUI(likes, dislikes, activeAction) {
       document.getElementById('like-count').innerText = likes;
       document.getElementById('dislike-count').innerText = dislikes;
@@ -212,7 +290,184 @@ function getUserAction(bookId) {
   return localStorage.getItem(`book-${bookId}-reaction`);
 }
 
-  </script>
+  async function saveBookDetails() {
+    const adminEditFields = document.getElementById('admin-edit-fields');
+    const bookId = adminEditFields.getAttribute('data-book-id');
+    if (!bookId) {
+      alert('Book ID is missing!');
+      return;
+    }
+
+    const updatedDetails = {
+      title: document.getElementById('edit-title').value,
+      author: document.getElementById('edit-author').value,
+      genres: document.getElementById('edit-genres').value,
+      summary: document.getElementById('edit-summary').value,
+      description: document.getElementById('edit-description').value,
+    };
+
+    try {
+      const response = await fetch(`/books/${bookId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedDetails),
+      });
+
+      if (response.ok) {
+        alert('Book details updated successfully.');
+        // Reload book details dynamically
+        const updatedBook = await response.json();
+        document.getElementById('book-details-title').innerText = updatedBook.title;
+        document.getElementById('book-details-author').innerText = updatedBook.author;
+        document.getElementById('book-details-genres').innerText = updatedBook.genres;
+        document.getElementById('book-details-summary').innerText = updatedBook.summary;
+      } else {
+        alert('Failed to update book details.');
+      }
+    } catch (error) {
+      console.error('Error updating book details:', error);
+      alert('An error occurred while updating book details.');
+    }
+  }
+
+  async function handleLikeDislike(bookId, action) {
+    try {
+      const res = await fetch(`/books/${bookId}/${action}`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to update');
+
+      const updated = await res.json();
+      const likes = updated.likes || 0;
+      const dislikes = updated.dislikes || 0;
+
+      // Update UI
+      document.getElementById('like-count').innerText = likes;
+      document.getElementById('dislike-count').innerText = dislikes;
+      document.querySelector('.like-button').classList.toggle('active', action === 'like');
+      document.querySelector('.dislike-button').classList.toggle('active', action === 'dislike');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update like/dislike.');
+    }
+  }
+
+  async function fetchRecommendations() {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const bookId = urlParams.get('bookId'); // Get the current book ID
+      if (!bookId) return;
+
+      const response = await fetch(`/recommendations?bookId=${bookId}`);
+      if (response.ok) {
+        const data = await response.json();
+        const recommendations = data.recommendations;
+        const recommendationsContainer = document.querySelector('#recommendations-container');
+
+        if (recommendationsContainer) {
+          recommendationsContainer.innerHTML = ""; // Clear existing recommendations
+
+          if (recommendations.length === 0) {
+            recommendationsContainer.innerHTML = `<p class="text-muted text-center">No recommendations available at the moment.</p>`;
+            return;
+          }
+
+          // Create a row for the recommendations
+          const row = document.createElement('div');
+          row.classList.add('row', 'g-4');
+
+          // Populate up to 4 recommendations
+          recommendations.forEach((recommendation) => {
+            const col = document.createElement('div');
+            col.classList.add('col-md-3'); // Adjust column size as needed
+            col.innerHTML = `
+              <div class="card h-100 shadow-sm">
+                <img src="/uploads/${recommendation.cover}" class="card-img-top" alt="Book Cover">
+                <div class="card-body">
+                  <h5 class="card-title">${recommendation.title}</h5>
+                  <p class="card-text">${recommendation.description}</p>
+                  <a href="book-details.html?bookId=${recommendation.id}" class="btn btn-success w-100 mt-2">
+                    <i class="fas fa-info-circle"></i> View
+                  </a>
+                </div>
+              </div>
+            `;
+            row.appendChild(col);
+          });
+
+          recommendationsContainer.appendChild(row);
+        }
+      } else {
+        console.error('Failed to fetch recommendations:', await response.text());
+      }
+    } catch (error) {
+      console.error('Error fetching recommendations:', error);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    fetchRecommendations();
+  });
+
+  // Function to fetch and display reviews
+  async function fetchReviews() {
+    try {
+      const res = await fetch(`/books/${currentBookId}/reviews`);
+      if (!res.ok) throw new Error('Failed to fetch reviews');
+      const reviews = await res.json();
+
+      const reviewsContainer = document.getElementById('reviews-container');
+      reviewsContainer.innerHTML = ""; // Clear existing reviews
+
+      if (reviews.length === 0) {
+        reviewsContainer.innerHTML = `<p class="text-muted text-center">No reviews yet. Be the first to review this book!</p>`;
+        return;
+      }
+
+      reviews.forEach(review => {
+        const reviewItem = document.createElement('div');
+        reviewItem.classList.add('card', 'mb-3');
+        reviewItem.innerHTML = `
+          <div class="card-body">
+            <p class="card-text">${review.text}</p>
+            <p class="text-muted small">- ${review.username}</p>
+          </div>
+        `;
+        reviewsContainer.appendChild(reviewItem);
+      });
+    } catch (err) {
+      console.error('Error fetching reviews:', err);
+    }
+  }
+
+  // Function to submit a review
+  async function submitReview() {
+    const reviewText = document.getElementById('review-text').value.trim();
+    if (!reviewText) {
+      alert('Please write a review before submitting.');
+      return;
+    }
+
+    try {
+      const res = await fetch(`/books/${currentBookId}/reviews`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: reviewText }),
+      });
+
+      if (!res.ok) throw new Error('Failed to submit review');
+      alert('Review submitted successfully!');
+      document.getElementById('review-text').value = ""; // Clear the input field
+      fetchReviews(); // Reload reviews
+    } catch (err) {
+      console.error('Error submitting review:', err);
+      alert('Failed to submit review.');
+    }
+  }
+
+  // Fetch reviews on page load
+  document.addEventListener('DOMContentLoaded', () => {
+    fetchReviews();
+  });
+</script>
   
 </body>
 </html>

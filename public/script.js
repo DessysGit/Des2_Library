@@ -35,14 +35,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Check authentication status and adjust UI elements
     const isLoggedIn = await checkAuthStatus();
 
-    // Fetch books and recommendations only if the user is logged in
+    // Fetch books only if the user is logged in
     if (isLoggedIn) {
         fetchBooks();
-
-        // Delay fetching recommendations to ensure the server is ready
-        setTimeout(() => {
-            fetchRecommendations();
-        }, 1000); // Adjust the delay as needed
     }
 
     // Set up the outside click listener for the sidebar
@@ -303,49 +298,6 @@ function showSection(sectionId) {
     if (sectionId === 'add-book-section' && userRole !== 'admin') {
         alert('You do not have access to this section.');
         showSection('search-books');
-    }
-}
-
-// Function to fetch and display book recommendations
-async function fetchRecommendations() {
-    try {
-        const response = await fetch(`/recommendations`);
-        if (response.ok) {
-            const data = await response.json();
-            const recommendations = data.recommendations;
-            const carouselInner = document.querySelector('#recommendations-carousel .carousel-inner');
-
-            if (carouselInner) {
-                carouselInner.innerHTML = ""; // Clear existing recommendations
-
-                // Populate new recommendations
-                recommendations.forEach((recommendation, index) => {
-                    const recommendationItem = document.createElement('div');
-                    recommendationItem.classList.add('carousel-item');
-                    if (index === 0) recommendationItem.classList.add('active');
-                    recommendationItem.innerHTML = `
-                        <div class="book-card">
-                            <img src="/uploads/${recommendation.cover}" alt="Book Cover" class="img-fluid">
-                            <div class="details">
-                                <h5>${recommendation.title}</h5>
-                                <p>${recommendation.description}</p>
-                            </div>
-                        </div>
-                    `;
-                    carouselInner.appendChild(recommendationItem);
-                });
-
-                // Ensure the carousel is initialized
-                new bootstrap.Carousel(document.querySelector('#recommendations-carousel'), {
-                    interval: 3000,
-                    ride: 'carousel'
-                });
-            }
-        } else {
-            console.error('Failed to fetch recommendations:', await response.text());
-        }
-    } catch (error) {
-        console.error('Error fetching recommendations:', error);
     }
 }
 
@@ -801,49 +753,60 @@ async function checkAuthStatus() {
 
 // Function to handle like and dislike actions
 async function handleLikeDislike(bookId, action) {
-    try {
-        const response = await fetch(`/books/${bookId}/${action}`, { method: 'POST' });
-        if (response.ok) {
-            const data = await response.json();
-            updateLikeDislikeUI(bookId, data.likes, data.dislikes, action);
-        } else {
-            const errorMessage = await response.text();
-            alert('Failed to update like/dislike: ' + errorMessage);
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        alert('Failed to update like/dislike: ' + error.message);
+  try {
+    const response = await fetch(`/books/${bookId}/${action}`, { method: 'POST' });
+    if (response.ok) {
+      const { likes, dislikes } = await response.json();
+      updateLikeDislikeUI(bookId, likes, dislikes, action);
+    } else {
+      const errorMessage = await response.text();
+      alert('Failed to update like/dislike: ' + errorMessage);
     }
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Failed to update like/dislike: ' + error.message);
+  }
 }
 
-// Function to update the UI for like and dislike
 function updateLikeDislikeUI(bookId, likes, dislikes, action) {
-    const likeButton = document.querySelector(`#book-${bookId} .like-button`);
-    const dislikeButton = document.querySelector(`#book-${bookId} .dislike-button`);
-    if (likeButton) {
-        likeButton.innerHTML = `👍 ${likes}`;
-        if (action === 'like') {
-            likeButton.classList.add('active');
-            dislikeButton.classList.remove('active');
-        }
-    }
-    if (dislikeButton) {
-        dislikeButton.innerHTML = `👎 ${dislikes}`;
-        if (action === 'dislike') {
-            dislikeButton.classList.add('active');
-            likeButton.classList.remove('active');
-        }
-    }
+  const likeButton = document.querySelector(`#book-${bookId} .like-button`);
+  const dislikeButton = document.querySelector(`#book-${bookId} .dislike-button`);
+  if (likeButton) {
+    likeButton.innerHTML = `👍 ${likes}`;
+    likeButton.classList.toggle('active', action === 'like');
+  }
+  if (dislikeButton) {
+    dislikeButton.innerHTML = `👎 ${dislikes}`;
+    dislikeButton.classList.toggle('active', action === 'dislike');
+  }
+}
+
+function syncLikeDislikeAcrossPages(bookId, likes, dislikes, action) {
+  const likeBtn = document.querySelector(`#book-${bookId} .like-button`);
+  const dislikeBtn = document.querySelector(`#book-${bookId} .dislike-button`);
+
+  if (likeBtn) {
+    likeBtn.classList.toggle('active', action === 'like');
+    likeBtn.innerHTML = `👍 ${likes}`;
+  }
+  if (dislikeBtn) {
+    dislikeBtn.classList.toggle('active', action === 'dislike');
+    dislikeBtn.innerHTML = `👎 ${dislikes}`;
+  }
 }
 
 // Function to fetch and display detailed information about a selected book
-async function showBookDetails(bookId) {
-    window.location.href = `book-details.html?bookId=${bookId}`;
+function showBookDetails(bookId) {
+  if (!bookId) {
+    alert('Book ID is missing!');
+    return;
+  }
+  window.location.href = `book-details.html?bookId=${bookId}`;
 }
 
 async function saveBookDetails() {
     const adminEditFields = document.getElementById('admin-edit-fields');
-    const bookId = adminEditFields.getAttribute('data-book-id'); // Retrieve the book ID
+    const bookId = adminEditFields.getAttribute('data-book-id');
     if (!bookId) {
         alert('Book ID is missing!');
         return;
@@ -866,7 +829,21 @@ async function saveBookDetails() {
 
         if (response.ok) {
             alert('Book details updated successfully.');
-            window.location.reload(); // Reload the page to reflect changes
+            const updatedBook = await response.json();
+
+            // Update the book details on the main page dynamically
+            const bookItem = document.getElementById(`book-${bookId}`);
+            if (bookItem) {
+                bookItem.querySelector('.details h5').innerText = updatedBook.title;
+                bookItem.querySelector('.details p:nth-child(2)').innerHTML = `<strong>Author: </strong> ${updatedBook.author}`;
+                bookItem.querySelector('.details p:nth-child(3)').innerText = updatedBook.description;
+            }
+
+            // Update the book details on the current page
+            document.getElementById('book-details-title').innerText = updatedBook.title;
+            document.getElementById('book-details-author').innerText = updatedBook.author;
+            document.getElementById('book-details-genres').innerText = updatedBook.genres;
+            document.getElementById('book-details-summary').innerText = updatedBook.summary;
         } else {
             alert('Failed to update book details.');
         }
