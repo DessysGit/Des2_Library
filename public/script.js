@@ -6,6 +6,11 @@ let userRole = "";
 
 // Ensure the necessary elements are hidden on initial load
 document.addEventListener('DOMContentLoaded', async () => {
+    // Remove light mode initialization
+    // if (localStorage.getItem('lightMode') === 'enabled') {
+    //     document.body.classList.add('light-mode');
+    // }
+
     const hamburgerButton = document.getElementById('hamburger-button');
     const searchBooksSection = document.getElementById('search-books');
     const manageUsersLink = document.getElementById('manage-users-link');
@@ -301,7 +306,23 @@ function showSection(sectionId) {
     }
 }
 
-// Function to fetch books and update the book list and recommendations
+// Add a reusable function to handle fetch errors
+async function fetchWithErrorHandling(url, options = {}) {
+    try {
+        const response = await fetch(url, options);
+        if (!response.ok) {
+            const errorMessage = await response.text();
+            throw new Error(errorMessage);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('Error:', error.message);
+        alert('An error occurred: ' + error.message);
+        throw error;
+    }
+}
+
+// Example: Use fetchWithErrorHandling in fetchBooks
 async function fetchBooks(query = "", page = 1) {
     const titleInput = document.getElementById('search-title');
     const authorInput = document.getElementById('search-author');
@@ -313,77 +334,84 @@ async function fetchBooks(query = "", page = 1) {
 
     const limit = 10; // Number of books per page
     const searchQuery = `title=${title}&author=${author}&genre=${genre}&page=${page}&limit=${limit}`;
+
     try {
-        const response = await fetch(`/books?${searchQuery}`);
-        if (response.ok) {
-            const data = await response.json();
-            const books = data.books;
-            const totalBooks = data.total;
-            const totalPages = Math.ceil(totalBooks / limit);
-            const searchMessage = document.getElementById('search-message');
-            const bookList = document.getElementById('book-list');
-            const pagination = document.getElementById('pagination');
+        showLoadingSpinner();
+        const data = await fetchWithErrorHandling(`/books?${searchQuery}`);
+        const books = data.books;
+        const totalBooks = data.total;
+        const totalPages = Math.ceil(totalBooks / limit);
+        const searchMessage = document.getElementById('search-message');
+        const bookList = document.getElementById('book-list');
+        const pagination = document.getElementById('pagination');
 
-            // Display message if some books are not classified
-            if (genre && books.length === 0 && searchMessage) {
-                searchMessage.style.display = 'block';
-            } else if (searchMessage) {
-                searchMessage.style.display = 'none';
-            }
-
-            // Update the book list
-            if (bookList) {
-                bookList.innerHTML = "";
-                books.forEach(book => {
-                    const bookItem = document.createElement('div');
-                    bookItem.classList.add('book-item');
-                    bookItem.id = `book-${book.id}`;
-                    bookItem.innerHTML = `
-                        <img src="/uploads/${book.cover}" alt="Cover Image">
-                        <div class="details">
-                            <h5>${book.title}</h5>
-                            <p><strong>Author: </strong> ${book.author}</p>
-                            <p>${book.description}</p>
-                            <button class="btn btn-secondary btn-sm" onclick="showBookDetails(${book.id})">Download</button>
-                            <div class="like-dislike-buttons">
-                                <button class="like-button" onclick="handleLikeDislike(${book.id}, 'like')">👍 ${book.likes || 0}</button>
-                                <button class="dislike-button" onclick="handleLikeDislike(${book.id}, 'dislike')">👎 ${book.dislikes || 0}</button>
-                            </div>
-                        </div>
-                        ${book.isAdmin ? `
-                            <div class="actions">
-                                <button class="btn btn-warning btn-sm" onclick="editBook(${book.id})">Edit</button>
-                                <button class="btn btn-danger btn-sm" onclick="deleteBook(${book.id})">Delete</button>
-                            </div>
-                        ` : ""}
-                    `;
-                    bookList.appendChild(bookItem);
-                });
-            }
-
-            // Clear and update the pagination
-            if (pagination) {
-                pagination.innerHTML = "";
-                for (let i = 1; i <= totalPages; i++) {
-                    const pageItem = document.createElement('li');
-                    pageItem.classList.add('page-item');
-                    if (i === page) {
-                        pageItem.classList.add('active');
-                    }
-                    pageItem.innerHTML = `<button class="page-link" onclick="fetchBooks('${title}', ${i})">${i}</button>`;
-                    pagination.appendChild(pageItem);
-                }
-            }
-        } else {
-            console.error('Failed to fetch books');
+        // Display message if some books are not classified
+        if (genre && books.length === 0 && searchMessage) {
+            searchMessage.style.display = 'block';
+        } else if (searchMessage) {
+            searchMessage.style.display = 'none';
         }
-    } catch (error) {
-        console.error('Error:', error.message);
-        alert('Failed to fetch books: ' + error.message);
+
+        // Update the book list
+        if (bookList) {
+            bookList.innerHTML = "";
+            books.forEach(book => {
+                const bookItem = document.createElement('div');
+                bookItem.classList.add('book-item');
+                bookItem.id = `book-${book.id}`;
+                bookItem.innerHTML = `
+                    <img src="/uploads/${book.cover}" alt="Cover Image">
+                    <div class="details">
+                        <h5>${book.title}</h5>
+                        <p><strong>Author: </strong> ${book.author}</p>
+                        <p>${book.description}</p>
+                        <button class="btn btn-secondary btn-sm" onclick="showBookDetails(${book.id})">Download</button>
+                        <div class="like-dislike-buttons">
+                            <button class="like-button" onclick="handleLikeDislike(${book.id}, 'like')">👍 ${book.likes || 0}</button>
+                            <button class="dislike-button" onclick="handleLikeDislike(${book.id}, 'dislike')">👎 ${book.dislikes || 0}</button>
+                        </div>
+                    </div>
+                    ${book.isAdmin ? `
+                        <div class="actions">
+                            <button class="btn btn-warning btn-sm" onclick="editBook(${book.id})">Edit</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteBook(${book.id})">Delete</button>
+                        </div>
+                    ` : ""}
+                `;
+                bookList.appendChild(bookItem);
+            });
+        }
+
+        // Clear and update the pagination
+        if (pagination) {
+            pagination.innerHTML = "";
+            for (let i = 1; i <= totalPages; i++) {
+                const pageItem = document.createElement('li');
+                pageItem.classList.add('page-item');
+                if (i === page) {
+                    pageItem.classList.add('active');
+                }
+                pageItem.innerHTML = `<button class="page-link" onclick="fetchBooks('${title}', ${i})">${i}</button>`;
+                pagination.appendChild(pageItem);
+            }
+        }
+    } finally {
+        hideLoadingSpinner();
     }
 
     // Force the page to scroll to the top
     window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Add loading spinner functions
+function showLoadingSpinner() {
+    const spinner = document.getElementById('loading-spinner');
+    if (spinner) spinner.style.display = 'block';
+}
+
+function hideLoadingSpinner() {
+    const spinner = document.getElementById('loading-spinner');
+    if (spinner) spinner.style.display = 'none';
 }
 
 // Function to fetch users and update the user list

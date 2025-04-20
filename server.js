@@ -10,6 +10,8 @@ const LocalStrategy = require('passport-local').Strategy;
 const multer = require('multer');
 const fs = require('fs');
 const axios = require('axios');
+const { body, validationResult } = require('express-validator');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = 3000;
@@ -316,7 +318,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Register route
-app.post('/register', async (req, res) => {
+app.post('/register', [
+    body('username').isLength({ min: 3 }).withMessage('Username must be at least 3 characters long'),
+    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
     const { username, password } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
     db.run('INSERT INTO users (username, password, role) VALUES (?, ?, "user")', [username, hashedPassword], (err) => {
@@ -329,7 +338,12 @@ app.post('/register', async (req, res) => {
 });
 
 // Login route
-app.post('/login', (req, res, next) => {
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // Limit each IP to 10 login requests per windowMs
+    message: 'Too many login attempts, please try again later.'
+});
+app.post('/login', loginLimiter, (req, res, next) => {
     passport.authenticate('local', (err, user, info) => {
         if (err) { return next(err); }
         if (!user) { return res.status(401).send('Incorrect username or password'); }
@@ -666,7 +680,11 @@ app.get("/recommendations", isAuthenticated, async (req, res) => {
 // Endpoint to fetch reviews for a book
 app.get('/books/:id/reviews', (req, res) => {
     const bookId = req.params.id;
-    db.all('SELECT username, text FROM reviews WHERE bookId = ?', [bookId], (err, rows) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    db.all('SELECT username, text FROM reviews WHERE bookId = ? LIMIT ? OFFSET ?', [bookId, limit, offset], (err, rows) => {
         if (err) {
             console.error('Error fetching reviews:', err);
             return res.status(500).send('Failed to fetch reviews');
@@ -698,6 +716,12 @@ app.post('/books/:id/reviews', isAuthenticated, (req, res) => {
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Add centralized error handling middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).send('Something went wrong!');
+});
 
 // Start the server
 app.listen(PORT, () => {
