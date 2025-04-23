@@ -109,7 +109,7 @@
             </div>
         </div>
 
-        <!-- Modern Add Book Section -->
+        <!-- Add Book Section -->
 <div id="add-book-section" class="mt-4" style="display: none;">
     <div class="card shadow-lg border-0 bg-dark text-white p-4">
       <div class="card-body">
@@ -172,42 +172,50 @@
         </div>
 
         <!-- User Profile Section -->
-        <div id="profile-section" style="display: none;">
-            <div class="card">
-                <div class="card-body">
-                    <h2 class="card-title text-center">Edit Profile</h2>
-                    <div class="form-group text-center">
-                        <label for="profile-picture">Profile Picture:</label>
-                        <img id="profile-picture" class="rounded-circle img-thumbnail" src="" alt="Profile Picture" loading="lazy" style="max-width: 100px; margin-bottom: 10px;">
-                        <input type="file" id="profile-picture-input" class="form-control-file mt-2">
-                    </div>
-                    <div class="form-group">
-                        <label for="profile-email">Email:</label>
-                        <input type="email" id="profile-email" class="form-control" placeholder="Enter your email" disabled>
-                    </div>
-                    <div class="form-group">
-                        <label for="profile-genres">Favorite Genres:</label>
-                        <input type="text" id="profile-genres" class="form-control" placeholder="Enter your favorite genres" disabled>
-                    </div>
-                    <div class="form-group">
-                        <label for="profile-authors">Favorite Authors:</label>
-                        <input type="text" id="profile-authors" class="form-control" placeholder="Enter your favorite authors" disabled>
-                    </div>
-                    <div class="form-group">
-                        <label for="profile-books">Favorite Books:</label>
-                        <input type="text" id="profile-books" class="form-control" placeholder="Enter your favorite books" disabled>
-                    </div>
-                    <div class="form-group">
-                        <label for="profile-password">New Password (optional):</label>
-                        <input type="password" id="profile-password" class="form-control" placeholder="Enter new password">
-                    </div>
-                    <button id="edit-profile-button" onclick="enableProfileEditing()" class="btn btn-warning btn-block">Edit</button>
-                    <button id="save-profile-button" onclick="updateProfile()" class="btn btn-primary btn-block" style="display: none;">Save Changes</button>
-                    <button onclick="showSection('search-books')" class="btn btn-secondary btn-block mt-2">Back to Main Page</button>
-                </div>
-            </div>
+<div id="profile-section" style="display: none;">
+    <div class="card shadow-lg bg-dark text-white p-4">
+      <div class="card-body">
+        <h2 class="card-title text-success text-center mb-4">👤 Edit Profile</h2>
+  
+        <div class="text-center mb-4">
+          <img id="profile-picture" class="rounded-circle img-thumbnail" src="" alt="Profile Picture" loading="lazy" style="width: 120px; height: 120px;">
+          <input type="file" id="profile-picture-input" class="form-control-file mt-3">
         </div>
-
+  
+        <div class="form-group">
+          <label for="profile-email">Email</label>
+          <input type="email" id="profile-email" class="form-control" placeholder="Enter your email" disabled>
+        </div>
+  
+        <div class="form-group">
+          <label for="profile-genres">Favorite Genres</label>
+          <input type="text" id="profile-genres" class="form-control" placeholder="e.g., Sci-fi, Romance" disabled>
+        </div>
+  
+        <div class="form-group">
+          <label for="profile-authors">Favorite Authors</label>
+          <input type="text" id="profile-authors" class="form-control" placeholder="e.g., Tolkien, Rowling" disabled>
+        </div>
+  
+        <div class="form-group">
+          <label for="profile-books">Favorite Books</label>
+          <input type="text" id="profile-books" class="form-control" placeholder="e.g., The Hobbit" disabled>
+        </div>
+  
+        <div class="form-group">
+          <label for="profile-password">New Password</label>
+          <input type="password" id="profile-password" class="form-control" placeholder="Enter new password">
+        </div>
+  
+        <div class="d-flex flex-column align-items-center gap-2">
+          <button id="edit-profile-button" onclick="enableProfileEditing()" class="btn btn-warning mb-2 w-100">Edit</button>
+          <button id="save-profile-button" onclick="updateProfile()" class="btn btn-success mb-2 w-100" style="display: none;">Save Changes</button>
+          <button onclick="showSection('search-books')" class="btn btn-outline-light w-100">← Back to Main Page</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
         <!-- Logout Button -->
         <div class="mt-4 text-center">
             <div class="button-wrapper">
