@@ -236,16 +236,42 @@ body {
     border: none;
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    height: 300px; /* Set a fixed height for consistency */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
 }
 
 #recommendations-section .card-body {
     padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 
 #recommendations-section .card-title {
     color: #1DB954;
-    font-size: 24px;
-    margin-bottom: 20px;
+    font-size: 20px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+#recommendations-section .card-text {
+    font-size: 14px;
+    color: #aaa;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3; /* Limit to 3 lines */
+    -webkit-box-orient: vertical;
+}
+
+#recommendations-section .card img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 8px 8px 0 0;
 }
 
 /* Carousel */
@@ -656,6 +682,5 @@ button:active::after {
   #rating-stars .star.active {
     color: gold;
   }
-  
 
-  
+

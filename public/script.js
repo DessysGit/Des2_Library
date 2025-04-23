@@ -991,10 +991,12 @@ async function fetchRecommendations() {
                     item.classList.add('carousel-item');
                     if (index === 0) item.classList.add('active'); // Set the first item as active
                     item.innerHTML = `
-                        <img src="/uploads/${recommendation.cover}" class="d-block w-100" alt="${recommendation.title}">
-                        <div class="carousel-caption d-none d-md-block">
-                            <h5>${recommendation.title}</h5>
-                            <p>${recommendation.description}</p>
+                        <div class="card">
+                            <img src="/uploads/${recommendation.cover}" alt="${recommendation.title}">
+                            <div class="card-body">
+                                <h5 class="card-title">${recommendation.title}</h5>
+                                <p class="card-text">${recommendation.description}</p>
+                            </div>
                         </div>
                     `;
                     recommendationsCarousel.appendChild(item);
