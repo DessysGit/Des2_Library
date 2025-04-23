@@ -252,22 +252,29 @@ function closeMenuOnClickOutside(event) {
 function showSection(sectionId) {
     const sections = document.querySelectorAll('#register-form, #login-form, #search-books, #profile-section, #admin-section, #add-book-section, #recommendations-section, .newsletter-section');
     sections.forEach(section => {
-        section.style.display = section.id === sectionId ? 'block' : 'none';
+        if (section) section.style.display = section.id === sectionId ? 'block' : 'none';
     });
 
     // Scroll to the top of the page
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     // Reset the search inputs and recommendations when switching sections
+    const searchTitle = document.getElementById('search-title');
+    const searchAuthor = document.getElementById('search-author');
+    const searchGenre = document.getElementById('search-genre');
+    const bookList = document.getElementById('book-list');
+    const pagination = document.getElementById('pagination');
+    const recommendationsCarousel = document.querySelector('#recommendations-carousel .carousel-inner');
+
     if (sectionId === 'search-books') {
         fetchBooks();
     } else {
-        document.getElementById('search-title').value = "";
-        document.getElementById('search-author').value = "";
-        document.getElementById('search-genre').value = "";
-        document.getElementById('book-list').innerHTML = "";
-        document.getElementById('pagination').innerHTML = "";
-        document.querySelector('#recommendations-carousel .carousel-inner').innerHTML = "";
+        if (searchTitle) searchTitle.value = "";
+        if (searchAuthor) searchAuthor.value = "";
+        if (searchGenre) searchGenre.value = "";
+        if (bookList) bookList.innerHTML = "";
+        if (pagination) pagination.innerHTML = "";
+        if (recommendationsCarousel) recommendationsCarousel.innerHTML = "";
     }
 
     // Hide newsletter, footer, and recommendations sections for non-main sections
@@ -285,7 +292,7 @@ function showSection(sectionId) {
     }
 
     const sidebar = document.getElementById('sidebar');
-    if (sidebar.classList.contains('active')) {
+    if (sidebar && sidebar.classList.contains('active')) {
         sidebar.classList.remove('active'); // Ensure sidebar is closed after selecting a section
     }
 
@@ -416,37 +423,45 @@ function hideLoadingSpinner() {
 
 // Function to fetch users and update the user list
 async function fetchUsers() {
-    const response = await fetch('/users');
-    if (response.ok) {
-        const users = await response.json();
-        const userList = document.getElementById('user-list');
-        userList.innerHTML = "";
-        users.forEach(user => {
-            const userItem = document.createElement('div');
-            userItem.classList.add('list-group-item');
-            userItem.innerHTML = `
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <p><strong>Username: </strong> ${user.username}</p>
-                        <p><strong>Role: </strong> ${user.role}</p>
-                    </div>
-                    ${user.username !== seedAdminUsername ? `
-                    ${user.role !== 'admin' ? `
-                    <div>
-                        <button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id})">Delete</button>
-                        <button class="btn btn-primary btn-sm" onclick="grantAdmin(${user.id})">Grant Admin</button>
-                    </div>
-                    `:`
-                    <div>
-                        <button class="btn btn-secondary btn-sm" onclick="revokeAdmin(${user.id})">Revoke Admin</button>
-                    </div>`}
-                    ` : ""}
-                </div>
-            `;
-            userList.appendChild(userItem);
-        });
-    } else {
-        console.error('Failed to fetch users');
+    try {
+        const response = await fetch('/users');
+        if (response.ok) {
+            const users = await response.json();
+            const userList = document.getElementById('user-list');
+            if (userList) {
+                userList.innerHTML = ""; // Clear the list before rendering
+                users.forEach(user => {
+                    const userItem = document.createElement('div');
+                    userItem.classList.add('list-group-item');
+                    userItem.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p><strong>Username: </strong> ${user.username}</p>
+                                <p><strong>Role: </strong> ${user.role}</p>
+                            </div>
+                            ${user.username !== seedAdminUsername ? `
+                            ${user.role !== 'admin' ? `
+                            <div>
+                                <button class="btn btn-danger btn-sm" onclick="confirmDeleteUser(${user.id}, '${user.username}')">Delete</button>
+                                <button class="btn btn-primary btn-sm" onclick="grantAdmin(${user.id})">Grant Admin</button>
+                            </div>
+                            ` : `
+                            <div>
+                                <button class="btn btn-secondary btn-sm" onclick="revokeAdmin(${user.id})">Revoke Admin</button>
+                            </div>`}
+                            ` : ""}
+                        </div>
+                    `;
+                    userList.appendChild(userItem);
+                });
+            }
+        } else {
+            console.error('Failed to fetch users:', await response.text());
+            alert('Failed to fetch users.');
+        }
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        alert('An error occurred while fetching users.');
     }
 }
 
@@ -482,6 +497,12 @@ async function deleteUser(userId) {
         alert('Failed to delete user: ' + errorMessage);
     }
 }
+
+function confirmDeleteUser(userId, username) {
+    if (confirm(`Are you sure you want to delete '${username}'?`)) {
+      deleteUser(userId);
+    }
+  }
 
 // Function to add a book
 async function addBook() {

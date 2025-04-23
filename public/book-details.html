@@ -178,69 +178,55 @@
   <!-- Inline Script to Load Book Data -->
   <script>
     let currentBookId = null;
-
+  
     document.addEventListener('DOMContentLoaded', async () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      currentBookId = urlParams.get('bookId');
+      const params = new URLSearchParams(window.location.search);
+      currentBookId = params.get('bookId');
       if (!currentBookId) return alert('Book ID is missing!');
-
+  
       try {
+        // Fetch book details
         const res = await fetch(`/books/${currentBookId}`);
         if (!res.ok) throw new Error('Failed to load book.');
         const book = await res.json();
-
-        // Update book details
+  
+        // Display book info
         document.getElementById('book-details-title').innerText = book.title;
         document.getElementById('book-details-author').innerText = book.author;
         document.getElementById('book-details-genres').innerText = book.genres;
         document.getElementById('book-details-summary').innerText = book.summary || 'No summary provided.';
         document.getElementById('book-details-cover').src = book.cover;
         document.getElementById('book-details-download').href = book.file;
-
-        // Update likes and dislikes
-        document.getElementById('like-count').innerText = book.likes || 0;
-        document.getElementById('dislike-count').innerText = book.dislikes || 0;
+  
+        // Display like/dislike counts
+        const likes = book.likes || 0;
+        const dislikes = book.dislikes || 0;
+        updateLikeUI(likes, dislikes, getUserAction(currentBookId));
+  
+        // Check if user is admin
+        const userRes = await fetch('/current-user');
+        if (userRes.ok) {
+          const user = await userRes.json();
+          if (user.role === 'admin') {
+            const editFields = document.getElementById('admin-edit-fields');
+            editFields.style.display = 'block';
+            editFields.setAttribute('data-book-id', currentBookId);
+  
+            document.getElementById('edit-title').value = book.title;
+            document.getElementById('edit-author').value = book.author;
+            document.getElementById('edit-genres').value = book.genres;
+            document.getElementById('edit-summary').value = book.summary || "";
+            document.getElementById('edit-description').value = book.description || "";
+          }
+        }
       } catch (err) {
-        console.error('Failed to load book details:', err);
-        alert('Error loading book details.');
+        console.error('Failed to load book details or user info:', err);
       }
+  
+      fetchRecommendations();
+      fetchReviews();
     });
-
-    async function handleLikeDislike(bookId, action) {
-      try {
-        const res = await fetch(`/books/${bookId}/${action}`, { method: 'POST' });
-        if (!res.ok) throw new Error('Failed to update');
-
-        const updated = await res.json();
-        const likes = updated.likes || 0;
-        const dislikes = updated.dislikes || 0;
-
-        // Update UI
-        document.getElementById('like-count').innerText = likes;
-        document.getElementById('dislike-count').innerText = dislikes;
-
-        // Sync likes/dislikes across pages
-        syncLikeDislikeAcrossPages(bookId, likes, dislikes, action);
-      } catch (err) {
-        console.error(err);
-        alert('Failed to update like/dislike.');
-      }
-    }
-
-    function syncLikeDislikeAcrossPages(bookId, likes, dislikes, action) {
-      const likeBtn = document.querySelector(`#book-${bookId} .like-button`);
-      const dislikeBtn = document.querySelector(`#book-${bookId} .dislike-button`);
-
-      if (likeBtn) {
-        likeBtn.classList.toggle('active', action === 'like');
-        likeBtn.innerHTML = `👍 ${likes}`;
-      }
-      if (dislikeBtn) {
-        dislikeBtn.classList.toggle('active', action === 'dislike');
-        dislikeBtn.innerHTML = `👎 ${dislikes}`;
-      }
-    }
-
+  
     function updateLikeUI(likes, dislikes, activeAction) {
       document.getElementById('like-count').innerText = likes;
       document.getElementById('dislike-count').innerText = dislikes;
@@ -249,225 +235,179 @@
       document.querySelector('.dislike-button').classList.toggle('active', activeAction === 'dislike');
     }
   
-    function syncLikeDislikeAcrossPages(bookId, likes, dislikes, action) {
-  const likeBtn = document.querySelector(`#book-${bookId} .like-button`);
-  const dislikeBtn = document.querySelector(`#book-${bookId} .dislike-button`);
-
-  if (likeBtn) {
-    likeBtn.classList.toggle('active', action === 'like');
-    likeBtn.innerHTML = `<i class="fas fa-thumbs-up"></i> ${likes}`;
-  }
-  if (dislikeBtn) {
-    dislikeBtn.classList.toggle('active', action === 'dislike');
-    dislikeBtn.innerHTML = `<i class="fas fa-thumbs-down"></i> ${dislikes}`;
-  }
-}
-
+    function setUserAction(bookId, action) {
+      localStorage.setItem(`book-${bookId}-reaction`, action);
+    }
   
-    document.addEventListener('DOMContentLoaded', async () => {
-  const params = new URLSearchParams(window.location.search);
-  currentBookId = params.get('bookId');
-  if (!currentBookId) return alert('Book ID is missing!');
-
-  try {
-    const res = await fetch(`/books/${currentBookId}`);
-    const book = await res.json();
-
-    // Fallbacks for undefined counts
-    const likes = book.likes || 0;
-    const dislikes = book.dislikes || 0;
-    updateLikeUI(likes, dislikes, getUserAction(currentBookId));
-  } catch (err) {
-    console.error('Failed to load book details:', err);
-  }
-});
-
-function setUserAction(bookId, action) {
-  localStorage.setItem(`book-${bookId}-reaction`, action);
-}
-
-function getUserAction(bookId) {
-  return localStorage.getItem(`book-${bookId}-reaction`);
-}
-
-  async function saveBookDetails() {
-    const adminEditFields = document.getElementById('admin-edit-fields');
-    const bookId = adminEditFields.getAttribute('data-book-id');
-    if (!bookId) {
-      alert('Book ID is missing!');
-      return;
+    function getUserAction(bookId) {
+      return localStorage.getItem(`book-${bookId}-reaction`);
     }
-
-    const updatedDetails = {
-      title: document.getElementById('edit-title').value,
-      author: document.getElementById('edit-author').value,
-      genres: document.getElementById('edit-genres').value,
-      summary: document.getElementById('edit-summary').value,
-      description: document.getElementById('edit-description').value,
-    };
-
-    try {
-      const response = await fetch(`/books/${bookId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedDetails),
-      });
-
-      if (response.ok) {
-        alert('Book details updated successfully.');
-        // Reload book details dynamically
-        const updatedBook = await response.json();
-        document.getElementById('book-details-title').innerText = updatedBook.title;
-        document.getElementById('book-details-author').innerText = updatedBook.author;
-        document.getElementById('book-details-genres').innerText = updatedBook.genres;
-        document.getElementById('book-details-summary').innerText = updatedBook.summary;
-      } else {
-        alert('Failed to update book details.');
+  
+    async function handleLikeDislike(bookId, action) {
+      try {
+        const res = await fetch(`/books/${bookId}/${action}`, { method: 'POST' });
+        if (!res.ok) throw new Error('Failed to update');
+  
+        const updated = await res.json();
+        const likes = updated.likes || 0;
+        const dislikes = updated.dislikes || 0;
+  
+        setUserAction(bookId, action);
+        updateLikeUI(likes, dislikes, action);
+        syncLikeDislikeAcrossPages(bookId, likes, dislikes, action);
+      } catch (err) {
+        console.error(err);
+        alert('Failed to update like/dislike.');
       }
-    } catch (error) {
-      console.error('Error updating book details:', error);
-      alert('An error occurred while updating book details.');
     }
-  }
-
-  async function handleLikeDislike(bookId, action) {
-    try {
-      const res = await fetch(`/books/${bookId}/${action}`, { method: 'POST' });
-      if (!res.ok) throw new Error('Failed to update');
-
-      const updated = await res.json();
-      const likes = updated.likes || 0;
-      const dislikes = updated.dislikes || 0;
-
-      // Update UI
-      document.getElementById('like-count').innerText = likes;
-      document.getElementById('dislike-count').innerText = dislikes;
-      document.querySelector('.like-button').classList.toggle('active', action === 'like');
-      document.querySelector('.dislike-button').classList.toggle('active', action === 'dislike');
-    } catch (err) {
-      console.error(err);
-      alert('Failed to update like/dislike.');
-    }
-  }
-
-  async function fetchRecommendations() {
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const bookId = urlParams.get('bookId'); // Get the current book ID
-      if (!bookId) return;
-
-      const response = await fetch(`/recommendations?bookId=${bookId}`);
-      if (response.ok) {
-        const data = await response.json();
-        const recommendations = data.recommendations;
-        const recommendationsContainer = document.querySelector('#recommendations-container');
-
-        if (recommendationsContainer) {
-          recommendationsContainer.innerHTML = ""; // Clear existing recommendations
-
-          if (recommendations.length === 0) {
-            recommendationsContainer.innerHTML = `<p class="text-muted text-center">No recommendations available at the moment.</p>`;
-            return;
-          }
-
-          // Create a row for the recommendations
-          const row = document.createElement('div');
-          row.classList.add('row', 'g-4');
-
-          // Populate up to 4 recommendations
-          recommendations.forEach((recommendation) => {
-            const col = document.createElement('div');
-            col.classList.add('col-md-3'); // Adjust column size as needed
-            col.innerHTML = `
-              <div class="card h-100 shadow-sm">
-                <img src="/uploads/${recommendation.cover}" class="card-img-top" alt="Book Cover">
-                <div class="card-body">
-                  <h5 class="card-title">${recommendation.title}</h5>
-                  <p class="card-text">${recommendation.description}</p>
-                  <a href="book-details.html?bookId=${recommendation.id}" class="btn btn-success w-100 mt-2">
-                    <i class="fas fa-info-circle"></i> View
-                  </a>
-                </div>
-              </div>
-            `;
-            row.appendChild(col);
-          });
-
-          recommendationsContainer.appendChild(row);
-        }
-      } else {
-        console.error('Failed to fetch recommendations:', await response.text());
+  
+    function syncLikeDislikeAcrossPages(bookId, likes, dislikes, action) {
+      const likeBtn = document.querySelector(`#book-${bookId} .like-button`);
+      const dislikeBtn = document.querySelector(`#book-${bookId} .dislike-button`);
+  
+      if (likeBtn) {
+        likeBtn.classList.toggle('active', action === 'like');
+        likeBtn.innerHTML = `<i class="fas fa-thumbs-up"></i> ${likes}`;
       }
-    } catch (error) {
-      console.error('Error fetching recommendations:', error);
+      if (dislikeBtn) {
+        dislikeBtn.classList.toggle('active', action === 'dislike');
+        dislikeBtn.innerHTML = `<i class="fas fa-thumbs-down"></i> ${dislikes}`;
+      }
     }
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    fetchRecommendations();
-  });
-
-  // Function to fetch and display reviews
-  async function fetchReviews() {
-    try {
-      const res = await fetch(`/books/${currentBookId}/reviews`);
-      if (!res.ok) throw new Error('Failed to fetch reviews');
-      const reviews = await res.json();
-
-      const reviewsContainer = document.getElementById('reviews-container');
-      reviewsContainer.innerHTML = ""; // Clear existing reviews
-
-      if (reviews.length === 0) {
-        reviewsContainer.innerHTML = `<p class="text-muted text-center">No reviews yet. Be the first to review this book!</p>`;
+  
+    async function saveBookDetails() {
+      const adminEditFields = document.getElementById('admin-edit-fields');
+      const bookId = adminEditFields.getAttribute('data-book-id');
+      if (!bookId) {
+        alert('Book ID is missing!');
         return;
       }
-
-      reviews.forEach(review => {
-        const reviewItem = document.createElement('div');
-        reviewItem.classList.add('card', 'mb-3');
-        reviewItem.innerHTML = `
-          <div class="card-body">
-            <p class="card-text">${review.text}</p>
-            <p class="text-muted small">- ${review.username}</p>
-          </div>
-        `;
-        reviewsContainer.appendChild(reviewItem);
-      });
-    } catch (err) {
-      console.error('Error fetching reviews:', err);
+  
+      const updatedDetails = {
+        title: document.getElementById('edit-title').value,
+        author: document.getElementById('edit-author').value,
+        genres: document.getElementById('edit-genres').value,
+        summary: document.getElementById('edit-summary').value,
+        description: document.getElementById('edit-description').value,
+      };
+  
+      try {
+        const response = await fetch(`/books/${bookId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedDetails),
+        });
+  
+        if (response.ok) {
+          alert('Book details updated successfully.');
+          const updatedBook = await response.json();
+          document.getElementById('book-details-title').innerText = updatedBook.title;
+          document.getElementById('book-details-author').innerText = updatedBook.author;
+          document.getElementById('book-details-genres').innerText = updatedBook.genres;
+          document.getElementById('book-details-summary').innerText = updatedBook.summary;
+        } else {
+          alert('Failed to update book details.');
+        }
+      } catch (error) {
+        console.error('Error updating book details:', error);
+        alert('An error occurred while updating book details.');
+      }
     }
-  }
-
-  // Function to submit a review
-  async function submitReview() {
-    const reviewText = document.getElementById('review-text').value.trim();
-    if (!reviewText) {
-      alert('Please write a review before submitting.');
-      return;
+  
+    async function fetchRecommendations() {
+      try {
+        const response = await fetch(`/recommendations?bookId=${currentBookId}`);
+        if (!response.ok) throw new Error(await response.text());
+  
+        const data = await response.json();
+        const recommendations = data.recommendations;
+        const container = document.querySelector('#recommendations-container');
+        container.innerHTML = "";
+  
+        if (recommendations.length === 0) {
+          container.innerHTML = `<p class="text-muted text-center">No recommendations available at the moment.</p>`;
+          return;
+        }
+  
+        const row = document.createElement('div');
+        row.classList.add('row', 'g-4');
+  
+        recommendations.forEach(rec => {
+          const col = document.createElement('div');
+          col.classList.add('col-md-3');
+          col.innerHTML = `
+            <div class="card h-100 shadow-sm">
+              <img src="/uploads/${rec.cover}" class="card-img-top" alt="Book Cover">
+              <div class="card-body">
+                <h5 class="card-title">${rec.title}</h5>
+                <p class="card-text">${rec.description}</p>
+                <a href="book-details.html?bookId=${rec.id}" class="btn btn-success w-100 mt-2">
+                  <i class="fas fa-info-circle"></i> View
+                </a>
+              </div>
+            </div>
+          `;
+          row.appendChild(col);
+        });
+  
+        container.appendChild(row);
+      } catch (error) {
+        console.error('Error fetching recommendations:', error);
+      }
     }
-
-    try {
-      const res = await fetch(`/books/${currentBookId}/reviews`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: reviewText }),
-      });
-
-      if (!res.ok) throw new Error('Failed to submit review');
-      alert('Review submitted successfully!');
-      document.getElementById('review-text').value = ""; // Clear the input field
-      fetchReviews(); // Reload reviews
-    } catch (err) {
-      console.error('Error submitting review:', err);
-      alert('Failed to submit review.');
+  
+    async function fetchReviews() {
+      try {
+        const res = await fetch(`/books/${currentBookId}/reviews`);
+        if (!res.ok) throw new Error('Failed to fetch reviews');
+        const reviews = await res.json();
+  
+        const container = document.getElementById('reviews-container');
+        container.innerHTML = "";
+  
+        if (reviews.length === 0) {
+          container.innerHTML = `<p class="text-muted text-center">No reviews yet. Be the first to review this book!</p>`;
+          return;
+        }
+  
+        reviews.forEach(review => {
+          const card = document.createElement('div');
+          card.classList.add('card', 'mb-3');
+          card.innerHTML = `
+            <div class="card-body">
+              <p class="card-text">${review.text}</p>
+              <p class="text-muted small">- ${review.username}</p>
+            </div>
+          `;
+          container.appendChild(card);
+        });
+      } catch (err) {
+        console.error('Error fetching reviews:', err);
+      }
     }
-  }
-
-  // Fetch reviews on page load
-  document.addEventListener('DOMContentLoaded', () => {
-    fetchReviews();
-  });
-</script>
+  
+    async function submitReview() {
+      const text = document.getElementById('review-text').value.trim();
+      if (!text) return alert('Please write a review before submitting.');
+  
+      try {
+        const res = await fetch(`/books/${currentBookId}/reviews`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
+  
+        if (!res.ok) throw new Error('Failed to submit review');
+        alert('Review submitted successfully!');
+        document.getElementById('review-text').value = "";
+        fetchReviews();
+      } catch (err) {
+        console.error('Error submitting review:', err);
+        alert('Failed to submit review.');
+      }
+    }
+  </script>
+  
   
 </body>
 </html>
