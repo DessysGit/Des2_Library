@@ -370,12 +370,28 @@ app.post('/register', [
     }
     const { username, password } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
-    db.run('INSERT INTO users (username, password, role) VALUES (?, ?, "user")', [username, hashedPassword], (err) => {
+
+    // Find the smallest available ID
+    db.get('SELECT MIN(id + 1) AS nextId FROM users WHERE (id + 1) NOT IN (SELECT id FROM users)', [], (err, row) => {
         if (err) {
-            res.status(400).send(err.message);
-            return;
+            console.error('Error finding next available ID:', err);
+            return res.status(500).send('Failed to register user');
         }
-        res.send('User registered successfully.');
+
+        const nextId = row?.nextId || 1; // Default to 1 if no users exist
+
+        // Insert the new user with the calculated ID
+        db.run(
+            'INSERT INTO users (id, username, password, role) VALUES (?, ?, ?, "user")',
+            [nextId, username, hashedPassword],
+            (err) => {
+                if (err) {
+                    console.error('Error registering user:', err);
+                    return res.status(400).send(err.message);
+                }
+                res.send('User registered successfully.');
+            }
+        );
     });
 });
 
@@ -450,13 +466,27 @@ app.post('/addBook', isAdmin, upload.fields([{ name: 'bookCover', maxCount: 1 },
         return;
     }
 
-    db.run('INSERT INTO books (title, author, description, genres, cover, file) VALUES (?, ?, ?, ?, ?, ?)', [title, author, description, genresString, cover, file], function (err) {
+    // Find the smallest available ID
+    db.get('SELECT MIN(id + 1) AS nextId FROM books WHERE (id + 1) NOT IN (SELECT id FROM books)', [], (err, row) => {
         if (err) {
-            console.error('Error adding book:', err);
-            res.status(500).send('Failed to add book');
-        } else {
-            res.status(200).send('Book added successfully');
+            console.error('Error finding next available ID:', err);
+            return res.status(500).send('Failed to add book');
         }
+
+        const nextId = row?.nextId || 1; // Default to 1 if no books exist
+
+        // Insert the new book with the calculated ID
+        db.run(
+            'INSERT INTO books (id, title, author, description, genres, cover, file) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [nextId, title, author, description, genresString, cover, file],
+            function (err) {
+                if (err) {
+                    console.error('Error adding book:', err);
+                    return res.status(500).send('Failed to add book');
+                }
+                res.status(200).send('Book added successfully');
+            }
+        );
     });
 });
 
@@ -542,6 +572,13 @@ app.delete('/books/:id', isAdmin, (req, res) => {
                 console.error('Error deleting book:', err);
                 return res.status(500).send('Failed to delete book');
             }
+
+            // Reset the auto-increment counter for the books table
+            db.run('DELETE FROM sqlite_sequence WHERE name = "books"', (err) => {
+                if (err) {
+                    console.error('Error resetting books auto-increment counter:', err);
+                }
+            });
 
             // Delete the cover image file
             if (fs.existsSync(coverPath)) {
@@ -675,6 +712,14 @@ app.delete('/users/:id', isAdmin, (req, res) => {
             res.status(400).send(err.message);
             return;
         }
+
+        // Reset the auto-increment counter for the users table
+        db.run('DELETE FROM sqlite_sequence WHERE name = "users"', (err) => {
+            if (err) {
+                console.error('Error resetting users auto-increment counter:', err);
+            }
+        });
+
         res.send('User deleted successfully.');
     });
 });

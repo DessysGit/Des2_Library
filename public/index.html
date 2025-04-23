@@ -109,42 +109,56 @@
             </div>
         </div>
 
-        <!-- Add Book Section -->
-        <div id="add-book-section" class="mt-4" style="display: none;">
-            <div class="card">
-                <div class="card-body text-center">
-                    <h2 class="card-title mb-3">Add Book</h2>
-                    <div class="form-group text-left">
-                        <label for="title">Book Title</label>
-                        <input type="text" id="title" class="form-control" placeholder="Book Title">
-                    </div>
-                    <div class="form-group text-left">
-                        <label for="author">Author</label>
-                        <input type="text" id="author" class="form-control" placeholder="Author">
-                    </div>
-                    <div class="form-group text-left">
-                        <label for="description">Description</label>
-                        <textarea id="description" class="form-control" placeholder="Description"></textarea>
-                    </div>
-                    <div class="form-group text-left">
-                        <label for="genres">Genres (separated by commas)</label>
-                        <input type="text" id="genres" class="form-control" placeholder="e.g., Fiction, Mystery, Fantasy">
-                    </div>
-                    <div class="form-group text-left">
-                        <label for="book-cover">Choose Book Cover</label>
-                        <input type="file" id="book-cover" class="form-control-file">
-                    </div>
-                    <div class="form-group text-left">
-                        <label for="book-file">Choose Book File</label>
-                        <input type="file" id="book-file" class="form-control-file">
-                    </div>
-                    <div class="button-wrapper">
-                        <button onclick="addBook()" class="btn btn-primary">Add Book</button>
-                    </div>
-                    <button onclick="showSection('search-books')" class="btn btn-secondary mt-2">Back to Main Page</button>
-                </div>
+        <!-- Modern Add Book Section -->
+<div id="add-book-section" class="mt-4" style="display: none;">
+    <div class="card shadow-lg border-0 bg-dark text-white p-4">
+      <div class="card-body">
+        <h2 class="card-title text-success mb-4 text-center">📚 Add a New Book</h2>
+  
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="title">Book Title</label>
+              <input type="text" id="title" class="form-control" placeholder="e.g., The Alchemist">
             </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="author">Author</label>
+              <input type="text" id="author" class="form-control" placeholder="e.g., Paulo Coelho">
+            </div>
+          </div>
         </div>
+  
+        <div class="form-group">
+          <label for="description">Short Description</label>
+          <textarea id="description" class="form-control" rows="3" placeholder="A brief summary of the book..."></textarea>
+        </div>
+  
+        <div class="form-group">
+          <label for="genres">Genres</label>
+          <input type="text" id="genres" class="form-control" placeholder="e.g., Fiction, Philosophy">
+        </div>
+  
+        <div class="row">
+          <div class="col-md-6">
+            <label for="book-cover">Upload Book Cover</label>
+            <input type="file" id="book-cover" class="form-control-file">
+          </div>
+          <div class="col-md-6">
+            <label for="book-file">Upload Book File</label>
+            <input type="file" id="book-file" class="form-control-file">
+          </div>
+        </div>
+  
+        <div class="d-flex flex-column align-items-center mt-4">
+          <button onclick="addBook()" class="btn btn-success w-100 mb-2">Add Book</button>
+          <button onclick="showSection('search-books')" class="btn btn-outline-light">← Back to Main Page</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
 
         <!-- Admin Section to Manage Users -->
         <div id="admin-section" class="mt-4" style="display: none;">
