@@ -648,3 +648,12 @@ button:active::after {
     color: #121212;
   }
   
+  #rating-stars .star {
+    font-size: 2rem;
+    color: gray;
+    cursor: pointer;
+  }
+  #rating-stars .star.active {
+    color: gold;
+  }
+  

@@ -695,22 +695,26 @@ app.get('/books/:id/reviews', (req, res) => {
 
 // Endpoint to submit a review for a book
 app.post('/books/:id/reviews', isAuthenticated, (req, res) => {
+    const { text, rating } = req.body;
     const bookId = req.params.id;
     const userId = req.user.id;
     const username = req.user.username;
-    const { text } = req.body;
 
-    if (!text || text.trim() === "") {
-        return res.status(400).send('Review text cannot be empty');
+    if (!text || !rating || rating < 1 || rating > 5) {
+        return res.status(400).send('Invalid review data');
     }
 
-    db.run('INSERT INTO reviews (bookId, userId, username, text) VALUES (?, ?, ?, ?)', [bookId, userId, username, text], function (err) {
-        if (err) {
-            console.error('Error submitting review:', err);
-            return res.status(500).send('Failed to submit review');
+    db.run(
+        'INSERT INTO reviews (bookId, userId, username, text) VALUES (?, ?, ?, ?)',
+        [bookId, userId, username, text],
+        function (err) {
+            if (err) {
+                console.error('Error adding review:', err);
+                return res.status(500).send('Failed to add review');
+            }
+            res.status(201).send({ message: 'Review added successfully' });
         }
-        res.status(201).send('Review submitted successfully');
-    });
+    );
 });
 
 // Serve static files

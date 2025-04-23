@@ -96,6 +96,7 @@
     </div>
   </section>
 
+
   <!-- Review Section -->
 <section id="review-section" class="container my-5">
   <h2 class="text-center">Reviews</h2>
@@ -105,6 +106,15 @@
   <div class="card mt-4">
     <div class="card-body">
       <h5 class="card-title">Leave a Review</h5>
+       <!-- Rating Stars -->
+<div id="rating-stars" class="mb-3 text-center">
+  <span class="star" onclick="setRating(1)">&#9733;</span>
+  <span class="star" onclick="setRating(2)">&#9733;</span>
+  <span class="star" onclick="setRating(3)">&#9733;</span>
+  <span class="star" onclick="setRating(4)">&#9733;</span>
+  <span class="star" onclick="setRating(5)">&#9733;</span>
+</div>
+<input type="hidden" id="review-rating" value="0">
       <textarea id="review-text" class="form-control mb-3" rows="3" placeholder="Write your review here..."></textarea>
       <button onclick="submitReview()" class="btn btn-primary w-100">Submit Review</button>
     </div>
@@ -374,11 +384,13 @@
           const card = document.createElement('div');
           card.classList.add('card', 'mb-3');
           card.innerHTML = `
-            <div class="card-body">
-              <p class="card-text">${review.text}</p>
-              <p class="text-muted small">- ${review.username}</p>
-            </div>
-          `;
+  <div class="card-body">
+    <p class="mb-1">${'⭐'.repeat(review.rating || 0)}</p>
+    <p class="card-text">${review.text}</p>
+    <p class="text-muted small">- ${review.username}</p>
+  </div>
+`;
+
           container.appendChild(card);
         });
       } catch (err) {
@@ -387,25 +399,40 @@
     }
   
     async function submitReview() {
-      const text = document.getElementById('review-text').value.trim();
-      if (!text) return alert('Please write a review before submitting.');
-  
-      try {
-        const res = await fetch(`/books/${currentBookId}/reviews`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text }),
-        });
-  
-        if (!res.ok) throw new Error('Failed to submit review');
-        alert('Review submitted successfully!');
-        document.getElementById('review-text').value = "";
-        fetchReviews();
-      } catch (err) {
-        console.error('Error submitting review:', err);
-        alert('Failed to submit review.');
-      }
-    }
+  const text = document.getElementById('review-text').value.trim();
+  const rating = parseInt(document.getElementById('review-rating').value);
+
+  if (!text || rating < 1 || rating > 5) {
+    return alert('Please write a review and choose a rating.');
+  }
+
+  try {
+    const res = await fetch(`/books/${currentBookId}/reviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, rating }),
+    });
+
+    if (!res.ok) throw new Error('Failed to submit review');
+    alert('Review submitted successfully!');
+    document.getElementById('review-text').value = '';
+    setRating(0); // Reset stars
+    fetchReviews();
+  } catch (err) {
+    console.error('Error submitting review:', err);
+    alert('Failed to submit review.');
+  }
+}
+
+
+    function setRating(value) {
+  document.getElementById('review-rating').value = value;
+  const stars = document.querySelectorAll('#rating-stars .star');
+  stars.forEach((star, index) => {
+    star.classList.toggle('active', index < value);
+  });
+}
+
   </script>
   
   
