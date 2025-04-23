@@ -141,6 +141,7 @@ async function logout() {
         const recommendationsSection = document.getElementById('recommendations-section');
         const mainContent = document.getElementById('main-content');
         const footer = document.getElementById('footer');
+        const sidebar = document.getElementById('sidebar');
 
         if (hamburgerButton) hamburgerButton.style.display = 'none';
         if (searchBooksSection) searchBooksSection.style.display = 'none';
@@ -155,22 +156,16 @@ async function logout() {
         if (newsletterSection) newsletterSection.style.display = 'none';
         if (recommendationsSection) recommendationsSection.style.display = 'none'; // Hide initially
         if (mainContent) mainContent.style.display = 'none';
-        if (footer) footer.style.display = 'none'; 
-        if (bookList) bookList.innerHTML = "";
-        if (pagination) pagination.innerHTML = "";
-        document.querySelector('#recommendations-carousel .carousel-inner').innerHTML = "";
+        if (footer) footer.style.display = 'none';
+        if (bookList) bookList.innerHTML = ""; // Clear book list if it exists
+        if (pagination) pagination.innerHTML = ""; // Clear pagination if it exists
 
-        // Clear add-book fields
-        if (addBookForm) {
-            document.getElementById('title').value = "";
-            document.getElementById('author').value = "";
-            document.getElementById('description').value = "";
-            document.getElementById('genres').value = "";
-            document.getElementById('book-cover').value = "";
-            document.getElementById('book-file').value = "";
-        }
-        const sidebar = document.getElementById('sidebar');
-        if (sidebar.classList.contains('active')) {
+        // Clear the recommendations carousel if it exists
+        const recommendationsCarousel = document.querySelector('#recommendations-carousel .carousel-inner');
+        if (recommendationsCarousel) recommendationsCarousel.innerHTML = "";
+
+        // Close the sidebar if it is active
+        if (sidebar && sidebar.classList.contains('active')) {
             sidebar.classList.remove('active');
         }
     } else {
