@@ -977,6 +977,37 @@ function updateBookList(books) {
     });
 }
 
+// Function to fetch and display recommendations
+async function fetchRecommendations() {
+    try {
+        const response = await fetch('/recommendations');
+        if (response.ok) {
+            const recommendations = await response.json();
+            const recommendationsCarousel = document.querySelector('#recommendations-carousel .carousel-inner');
+            if (recommendationsCarousel) {
+                recommendationsCarousel.innerHTML = ""; // Clear existing recommendations
+                recommendations.forEach((recommendation, index) => {
+                    const item = document.createElement('div');
+                    item.classList.add('carousel-item');
+                    if (index === 0) item.classList.add('active'); // Set the first item as active
+                    item.innerHTML = `
+                        <img src="/uploads/${recommendation.cover}" class="d-block w-100" alt="${recommendation.title}">
+                        <div class="carousel-caption d-none d-md-block">
+                            <h5>${recommendation.title}</h5>
+                            <p>${recommendation.description}</p>
+                        </div>
+                    `;
+                    recommendationsCarousel.appendChild(item);
+                });
+            }
+        } else {
+            console.error('Failed to fetch recommendations:', await response.text());
+        }
+    } catch (error) {
+        console.error('Error fetching recommendations:', error);
+    }
+}
+
 // Call the necessary functions on page load
 document.addEventListener('DOMContentLoaded', () => {
     // Check initial auth status and handle burger menu
