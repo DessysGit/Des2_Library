@@ -98,6 +98,7 @@ db.run(`CREATE TABLE IF NOT EXISTS reviews (
     userId INTEGER,
     username TEXT,
     text TEXT,
+    rating INTEGER,
     FOREIGN KEY(bookId) REFERENCES books(id),
     FOREIGN KEY(userId) REFERENCES users(id)
 )`);
@@ -122,6 +123,43 @@ const seedAdmin = async () => {
     });
 };
 seedAdmin();
+
+// Recalculate averageRating for all books
+const recalculateAverageRatings = () => {
+    db.all('SELECT id FROM books', [], (err, books) => {
+        if (err) {
+            console.error('Error fetching books for recalculating average ratings:', err.message);
+            return;
+        }
+
+        books.forEach((book) => {
+            db.get(
+                'SELECT AVG(rating) AS averageRating FROM reviews WHERE bookId = ?',
+                [book.id],
+                (err, row) => {
+                    if (err) {
+                        console.error(`Error calculating average rating for book ID ${book.id}:`, err.message);
+                        return;
+                    }
+
+                    const averageRating = row?.averageRating || 0;
+                    db.run(
+                        'UPDATE books SET averageRating = ? WHERE id = ?',
+                        [averageRating, book.id],
+                        (err) => {
+                            if (err) {
+                                console.error(`Error updating average rating for book ID ${book.id}:`, err.message);
+                            }
+                        }
+                    );
+                }
+            );
+        });
+    });
+};
+
+// Call the function during server startup
+recalculateAverageRatings();
 
 // Configure Passport.js for authentication
 passport.use(new LocalStrategy((username, password, done) => {
@@ -297,20 +335,24 @@ app.get('/books', (req, res) => {
 // Endpoint to fetch book details by ID
 app.get('/books/:id', (req, res) => {
     const bookId = req.params.id;
-    db.get('SELECT id, title, author, genres, summary, description, cover, file FROM books WHERE id = ?', [bookId], (err, row) => {
-        if (err) {
-            console.error('Error fetching book details:', err);
-            return res.status(500).send('Failed to fetch book details');
-        }
-        if (!row) {
-            return res.status(404).send('Book not found');
-        }
+    db.get(
+        'SELECT id, title, author, genres, summary, description, cover, file, averageRating, likes, dislikes FROM books WHERE id = ?',
+        [bookId],
+        (err, row) => {
+            if (err) {
+                console.error('Error fetching book details:', err);
+                return res.status(500).send('Failed to fetch book details');
+            }
+            if (!row) {
+                return res.status(404).send('Book not found');
+            }
 
-        // Add full paths for cover and file
-        row.cover = `/uploads/${row.cover}`;
-        row.file = `/uploads/${row.file}`;
-        res.json(row);
-    });
+            // Add full paths for cover and file
+            row.cover = `/uploads/${row.cover}`;
+            row.file = `/uploads/${row.file}`;
+            res.json(row);
+        }
+    );
 });
 
 // Serve static files
@@ -705,14 +747,38 @@ app.post('/books/:id/reviews', isAuthenticated, (req, res) => {
     }
 
     db.run(
-        'INSERT INTO reviews (bookId, userId, username, text) VALUES (?, ?, ?, ?)',
-        [bookId, userId, username, text],
+        'INSERT INTO reviews (bookId, userId, username, text, rating) VALUES (?, ?, ?, ?, ?)',
+        [bookId, userId, username, text, rating],
         function (err) {
             if (err) {
                 console.error('Error adding review:', err);
                 return res.status(500).send('Failed to add review');
             }
-            res.status(201).send({ message: 'Review added successfully' });
+
+            // Update the average rating for the book
+            db.get(
+                'SELECT AVG(rating) AS averageRating FROM reviews WHERE bookId = ?',
+                [bookId],
+                (err, row) => {
+                    if (err) {
+                        console.error('Error calculating average rating:', err);
+                        return res.status(500).send('Failed to update average rating');
+                    }
+
+                    const averageRating = row?.averageRating || 0;
+                    db.run(
+                        'UPDATE books SET averageRating = ? WHERE id = ?',
+                        [averageRating, bookId],
+                        (err) => {
+                            if (err) {
+                                console.error('Error updating average rating:', err);
+                                return res.status(500).send('Failed to update average rating');
+                            }
+                            res.status(201).send({ message: 'Review added successfully', averageRating });
+                        }
+                    );
+                }
+            );
         }
     );
 });

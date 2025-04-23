@@ -47,6 +47,7 @@
           <h2 id="book-details-title" class="text-success mb-3">Book Title</h2>
           <p><strong>Author:</strong> <span id="book-details-author">Author Name</span></p>
           <p><strong>Genres:</strong> <span id="book-details-genres">Genres</span></p>
+          <p><strong>Average Rating:</strong> <span id="book-details-average-rating">0</span> / 5</p>
           <hr class="bg-light"/>
           <p><strong>Summary:</strong></p>
           <p id="book-details-summary" class="text-muted">Brief summary of the book...</p>
@@ -207,6 +208,7 @@
         document.getElementById('book-details-summary').innerText = book.summary || 'No summary provided.';
         document.getElementById('book-details-cover').src = book.cover;
         document.getElementById('book-details-download').href = book.file;
+        document.getElementById('book-details-average-rating').innerText = (book.averageRating || 0).toFixed(1);
   
         // Display like/dislike counts
         const likes = book.likes || 0;
@@ -414,7 +416,12 @@
     });
 
     if (!res.ok) throw new Error('Failed to submit review');
+    const data = await res.json();
     alert('Review submitted successfully!');
+
+    // Update the average rating on the page
+    document.getElementById('book-details-average-rating').innerText = (data.averageRating || 0).toFixed(1);
+
     document.getElementById('review-text').value = '';
     setRating(0); // Reset stars
     fetchReviews();
