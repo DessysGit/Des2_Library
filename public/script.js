@@ -337,6 +337,9 @@ async function fetchBooks(query = "", page = 1) {
     const limit = 10; // Number of books per page
     const searchQuery = `title=${title}&author=${author}&genre=${genre}&page=${page}&limit=${limit}`;
 
+    // Show the searching message
+    document.getElementById('searching-msg').style.display = 'block';
+
     try {
         showLoadingSpinner();
         const data = await fetchWithErrorHandling(`/books?${searchQuery}`);
@@ -346,6 +349,14 @@ async function fetchBooks(query = "", page = 1) {
         const searchMessage = document.getElementById('search-message');
         const bookList = document.getElementById('book-list');
         const pagination = document.getElementById('pagination');
+        const noResultsMessage = document.getElementById('no-results-message');
+
+        // Display message if no books are found
+        if (books.length === 0) {
+            if (noResultsMessage) noResultsMessage.style.display = 'block';
+        } else {
+            if (noResultsMessage) noResultsMessage.style.display = 'none';
+        }
 
         // Display message if some books are not classified
         if (genre && books.length === 0 && searchMessage) {
@@ -367,10 +378,18 @@ async function fetchBooks(query = "", page = 1) {
                         <h5>${book.title}</h5>
                         <p><strong>Author: </strong> ${book.author}</p>
                         <p>${book.description}</p>
-                        <button class="btn btn-secondary btn-sm" onclick="showBookDetails(${book.id})">Download</button>
-                        <div class="like-dislike-buttons">
-                            <button class="like-button" onclick="handleLikeDislike(${book.id}, 'like')">👍 ${book.likes || 0}</button>
-                            <button class="dislike-button" onclick="handleLikeDislike(${book.id}, 'dislike')">👎 ${book.dislikes || 0}</button>
+                        <div class="like-dislike-ratings">
+                            <div class="like-dislike-buttons">
+                                <button class="like-button" onclick="handleLikeDislike(${book.id}, 'like')">👍 ${book.likes || 0}</button>
+                                <button class="dislike-button" onclick="handleLikeDislike(${book.id}, 'dislike')">👎 ${book.dislikes || 0}</button>
+                            </div>
+                            <button class="btn btn-secondary btn-sm" onclick="showBookDetails(${book.id})">Download</button>
+                            <div class="ratings">
+                                <span>
+                                    <i class="fas fa-star text-warning"></i> 
+                                    ${book.averageRating ? book.averageRating.toFixed(1) : 'N/A'} (${book.totalRatings || 0} ratings)
+                                </span>
+                            </div>
                         </div>
                     </div>
                     ${book.isAdmin ? `
@@ -397,13 +416,35 @@ async function fetchBooks(query = "", page = 1) {
                 pagination.appendChild(pageItem);
             }
         }
+
+        // Clear search fields after fetching books
+        clearSearchFields();
     } finally {
         hideLoadingSpinner();
+        // Hide the searching message
+        document.getElementById('searching-msg').style.display = 'none';
     }
 
     // Force the page to scroll to the top
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+// Function to clear search fields
+function clearSearchFields() {
+    const searchTitle = document.getElementById('search-title');
+    const searchAuthor = document.getElementById('search-author');
+    const searchGenre = document.getElementById('search-genre');
+
+    if (searchTitle) searchTitle.value = "";
+    if (searchAuthor) searchAuthor.value = "";
+    if (searchGenre) searchGenre.value = "";
+}
+
+function toggleAdvancedFilters() {
+    const filters = document.getElementById('advanced-filters');
+    filters.style.display = filters.style.display === 'none' ? 'block' : 'none';
+  }
+  
 
 // Add loading spinner functions
 function showLoadingSpinner() {
@@ -519,6 +560,7 @@ async function addBook() {
         const response = await fetch('/addBook', { method: 'POST', body: formData });
         if (response.ok) {
             alert('Book added successfully');
+            clearAddBookFields(); // Clear fields after successful addition
             showSection('search-books');
         } else {
             const errorMessage = await response.text();
@@ -528,6 +570,16 @@ async function addBook() {
         console.error('Error adding book:', error);
         alert('Failed to add book: ' + error.message);
     }
+}
+
+// Function to clear add book fields
+function clearAddBookFields() {
+    document.getElementById('title').value = "";
+    document.getElementById('author').value = "";
+    document.getElementById('description').value = "";
+    document.getElementById('genres').value = "";
+    document.getElementById('book-cover').value = "";
+    document.getElementById('book-file').value = "";
 }
 
 // Function to edit a book
@@ -960,10 +1012,18 @@ function updateBookList(books) {
                 <h5>${book.title}</h5>
                 <p><strong>Author: </strong> ${book.author}</p>
                 <p>${book.description}</p>
-                <button class="btn btn-secondary btn-sm" onclick="showBookDetails(${book.id})">Download</button>
-                <div class="like-dislike-buttons">
-                    <button class="like-button" onclick="handleLikeDislike(${book.id}, 'like')">👍 ${book.likes || 0}</button>
-                    <button class="dislike-button" onclick="handleLikeDislike(${book.id}, 'dislike')">👎 ${book.dislikes || 0}</button>
+                <div class="like-dislike-ratings">
+                    <div class="like-dislike-buttons">
+                        <button class="like-button" onclick="handleLikeDislike(${book.id}, 'like')">👍 ${book.likes || 0}</button>
+                        <button class="dislike-button" onclick="handleLikeDislike(${book.id}, 'dislike')">👎 ${book.dislikes || 0}</button>
+                    </div>
+                    <button class="btn btn-secondary btn-sm mt-2" onclick="showBookDetails(${book.id})">Download</button>
+                    <div class="ratings">
+                        <span>
+                            <i class="fas fa-star text-warning"></i> 
+                            ${book.averageRating ? book.averageRating.toFixed(1) : 'N/A'} (${book.totalRatings || 0} ratings)
+                        </span>
+                    </div>
                 </div>
             </div>
             ${book.isAdmin ? `

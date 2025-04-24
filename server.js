@@ -325,7 +325,26 @@ app.get('/books', (req, res) => {
                         ...book,
                         isAdmin: isAdmin
                     }));
-                    res.json({ books: booksWithAdminFlag, total: count.total });
+
+                    // Fetch total ratings for each book
+                    const bookIds = booksWithAdminFlag.map(book => book.id);
+                    const placeholders = bookIds.map(() => '?').join(',');
+                    db.all(
+                        `SELECT bookId, COUNT(*) AS totalRatings FROM reviews WHERE bookId IN (${placeholders}) GROUP BY bookId`,
+                        bookIds,
+                        (err, ratings) => {
+                            if (err) {
+                                console.error('Error fetching total ratings:', err.message);
+                                res.status(500).send('Failed to fetch total ratings');
+                            } else {
+                                const ratingsMap = Object.fromEntries(ratings.map(r => [r.bookId, r.totalRatings]));
+                                booksWithAdminFlag.forEach(book => {
+                                    book.totalRatings = ratingsMap[book.id] || 0;
+                                });
+                                res.json({ books: booksWithAdminFlag, total: count.total });
+                            }
+                        }
+                    );
                 }
             });
         }
@@ -621,7 +640,7 @@ app.post('/books/:id/like', isAuthenticated, (req, res) => {
 
             db.run('BEGIN TRANSACTION');
             if (row && row.action === 'dislike') {
-                db.run('UPDATE books SET dislikes = dislikes - 1 WHERE id = ?', [bookId]);
+                db.run('UPDATE books SET dislikes = MAX(dislikes - 1, 0) WHERE id = ?', [bookId]); // Ensure dislikes do not go below zero
             }
             db.run('UPDATE books SET likes = likes + 1 WHERE id = ?', [bookId]);
             db.run('INSERT OR REPLACE INTO likes (userId, bookId, action) VALUES (?, ?, ?)', [userId, bookId, 'like']);
@@ -660,7 +679,7 @@ app.post('/books/:id/dislike', isAuthenticated, (req, res) => {
 
             db.run('BEGIN TRANSACTION');
             if (row && row.action === 'like') {
-                db.run('UPDATE books SET likes = likes - 1 WHERE id = ?', [bookId]);
+                db.run('UPDATE books SET likes = MAX(likes - 1, 0) WHERE id = ?', [bookId]); // Ensure likes do not go below zero
             }
             db.run('UPDATE books SET dislikes = dislikes + 1 WHERE id = ?', [bookId]);
             db.run('INSERT OR REPLACE INTO likes (userId, bookId, action) VALUES (?, ?, ?)', [userId, bookId, 'dislike']);

@@ -196,6 +196,14 @@ body {
     opacity: 0.8;
 }
 
+.book-item .details button {
+    width: auto; /* Change from full width to auto */
+    padding: 5px 10px; /* Adjust padding for a smaller size */
+    font-size: 14px; /* Reduce font size */
+    margin-left: 10px; /* Push the button to the right */
+    margin-top: 10px; /* Add spacing from the content above */
+}
+
 /* Buttons */
 .book-item .actions {
     display: flex;
@@ -264,6 +272,7 @@ body {
     text-overflow: ellipsis;
     display: -webkit-box;
     -webkit-line-clamp: 3; /* Limit to 3 lines */
+    line-clamp: 3; /* Standard property for compatibility */
     -webkit-box-orient: vertical;
 }
 
@@ -682,5 +691,33 @@ button:active::after {
   #rating-stars .star.active {
     color: gold;
   }
+
+.like-dislike-ratings {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.ratings span {
+    font-size: 16px;
+    font-weight: bold;
+    color: white;
+    text-align: right;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.ratings .fa-star {
+    color: gold;
+}
+
+.like-dislike-buttons button,
+.book-item .details .btn {
+    width: auto; /* Allow buttons to adjust width dynamically */
+    padding: 8px 16px; /* Increase padding for a wider appearance */
+    font-size: 16px; /* Slightly larger font size */
+}
 
 

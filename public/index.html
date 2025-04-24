@@ -74,40 +74,74 @@
         </div>
 
         <!-- Search Books Section -->
-        <div id="search-books" class="mt-4" style="display: none;">
-            <div class="card">
-                <div class="card-body text-center">
-                    <h2 class="card-title">Search Books</h2>
-                    <div id="search-bar" class="search-bar mt-4">
-                        <div class="form-group">
-                            <label for="search-title">Title</label>
-                            <input type="text" id="search-title" class="form-control" placeholder="Title">
-                        </div>
-                        <div class="form-group">
-                            <label for="search-author">Author</label>
-                            <input type="text" id="search-author" class="form-control" placeholder="Author">
-                        </div>
-                        <div class="button-wrapper">
-                            <button onclick="fetchBooks()" class="btn btn-primary">Search</button>
-                        </div>
-                    </div>
-                    <div id="search-message" class="mt-3" style="display: none;">
-                        <p>Some books are not classified. Try searching by title or author if you don't see what you're looking for.</p>
-                    </div>
-                </div>
+<div id="search-books" class="mt-4" style="display: none;">
+    <div class="card bg-dark text-white shadow-lg p-4 border-0">
+      <div class="card-body text-center">
+        <h2 class="card-title text-success mb-2">
+          <i class="fas fa-search"></i> Search Books
+        </h2>
+        <p class="text-muted mb-3">You can fill in one or more fields — none are required.</p>
+  
+        <form onsubmit="fetchBooks(); return false;">
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label for="search-title" class="float-left">Title</label>
+              <input type="text" id="search-title" class="form-control" placeholder="e.g., The Alchemist">
             </div>
-
-            <!-- Book List -->
-            <div class="card mt-4">
-                <div class="card-body text-center">
-                    <h2 class="card-title">Book List</h2>
-                    <div id="book-list" class="book-list mt-4"></div>
-                    <nav aria-label="Page navigation">
-                        <ul id="pagination" class="pagination justify-content-center mt-4"></ul>
-                    </nav>
-                </div>
+            <div class="col-md-4 mb-3">
+              <label for="search-author" class="float-left">Author</label>
+              <input type="text" id="search-author" class="form-control" placeholder="e.g., Paulo Coelho">
             </div>
+            <div class="col-md-4 mb-3">
+              <label for="search-genre" class="float-left">Genre</label>
+              <input type="text" id="search-genre" class="form-control" placeholder="e.g., Fiction">
+            </div>
+          </div>
+  
+          <button type="submit" class="btn btn-success w-100">Search</button>
+        </form>
+  
+        <!-- Optional Advanced Filters -->
+        <a href="javascript:void(0);" onclick="toggleAdvancedFilters()" class="text-light small mt-3 d-block">
+          + Advanced Filters
+        </a>
+  
+        <div id="advanced-filters" class="mt-3" style="display: none;">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="search-year" class="float-left">Published Year</label>
+              <input type="number" id="search-year" class="form-control" placeholder="e.g., 2020">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label for="search-rating" class="float-left">Minimum Rating</label>
+              <input type="number" id="search-rating" class="form-control" step="0.1" min="0" max="5" placeholder="e.g., 4.0">
+            </div>
+          </div>
         </div>
+  
+        <p id="searching-msg" class="text-info mt-3" style="display: none;">
+          <i class="fas fa-spinner fa-spin"></i> Searching books...
+        </p>
+  
+        <p id="search-message" class="text-warning mt-2" style="display: none;">
+          Some books are not classified. Try searching by title or author if needed.
+        </p>
+      </div>
+    </div>
+  
+    <!-- Book List -->
+    <div class="card mt-4 bg-dark text-white shadow">
+      <div class="card-body text-center">
+        <h2 class="card-title text-success">Book List</h2>
+        <div id="book-list" class="book-list mt-4"></div>
+        <p id="no-results-message" class="text-danger mt-4" style="display: none;">No books found matching your search criteria.</p>
+        <nav aria-label="Page navigation">
+          <ul id="pagination" class="pagination justify-content-center mt-4"></ul>
+        </nav>
+      </div>
+    </div>
+  </div>
+  
 
         <!-- Add Book Section -->
 <div id="add-book-section" class="mt-4" style="display: none;">
