@@ -352,7 +352,6 @@ async function fetchBooks(query = "", page = 1) {
         const books = data.books;
         const totalBooks = data.total;
         const totalPages = Math.ceil(totalBooks / limit);
-        const searchMessage = document.getElementById('search-message');
         const bookList = document.getElementById('book-list');
         const pagination = document.getElementById('pagination');
         const noResultsMessage = document.getElementById('no-results-message');
@@ -362,13 +361,6 @@ async function fetchBooks(query = "", page = 1) {
             if (noResultsMessage) noResultsMessage.style.display = 'block';
         } else {
             if (noResultsMessage) noResultsMessage.style.display = 'none';
-        }
-
-        // Display message if some books are not classified
-        if (genre && books.length === 0 && searchMessage) {
-            searchMessage.style.display = 'block';
-        } else if (searchMessage) {
-            searchMessage.style.display = 'none';
         }
 
         // Update the book list
@@ -398,14 +390,12 @@ async function fetchBooks(query = "", page = 1) {
                             </div>
                         </div>
                     </div>
-                    ${book.isAdmin ? `
-                        <div class="actions">
-                            <button class="btn btn-warning btn-sm" onclick="editBook(${book.id})">Edit</button>
-                            <button class="btn btn-danger btn-sm" onclick="deleteBook(${book.id})">Delete</button>
-                        </div>
-                    ` : ""}
                 `;
                 bookList.appendChild(bookItem);
+
+                // Highlight the like/dislike buttons based on user action
+                const userAction = getUserAction(book.id);
+                updateLikeDislikeUI(book.id, book.likes, book.dislikes, userAction);
             });
         }
 
@@ -422,9 +412,6 @@ async function fetchBooks(query = "", page = 1) {
                 pagination.appendChild(pageItem);
             }
         }
-
-        // Clear search fields after fetching books
-        clearSearchFields();
     } finally {
         hideLoadingSpinner();
         // Hide the searching message
@@ -433,6 +420,24 @@ async function fetchBooks(query = "", page = 1) {
 
     // Force the page to scroll to the top
     window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateLikeDislikeUI(bookId, likes, dislikes, action) {
+    const likeButton = document.querySelector(`#book-${bookId} .like-button`);
+    const dislikeButton = document.querySelector(`#book-${bookId} .dislike-button`);
+
+    if (likeButton) {
+        likeButton.innerHTML = `👍 ${likes}`;
+        likeButton.classList.toggle('active', action === 'like'); // Highlight if liked
+    }
+    if (dislikeButton) {
+        dislikeButton.innerHTML = `👎 ${dislikes}`;
+        dislikeButton.classList.toggle('active', action === 'dislike'); // Highlight if disliked
+    }
+}
+
+function getUserAction(bookId) {
+    return localStorage.getItem(`book-${bookId}-reaction`);
 }
 
 // Function to clear search fields
@@ -872,16 +877,17 @@ async function handleLikeDislike(bookId, action) {
 }
 
 function updateLikeDislikeUI(bookId, likes, dislikes, action) {
-  const likeButton = document.querySelector(`#book-${bookId} .like-button`);
-  const dislikeButton = document.querySelector(`#book-${bookId} .dislike-button`);
-  if (likeButton) {
-    likeButton.innerHTML = `👍 ${likes}`;
-    likeButton.classList.toggle('active', action === 'like');
-  }
-  if (dislikeButton) {
-    dislikeButton.innerHTML = `👎 ${dislikes}`;
-    dislikeButton.classList.toggle('active', action === 'dislike');
-  }
+    const likeButton = document.querySelector(`#book-${bookId} .like-button`);
+    const dislikeButton = document.querySelector(`#book-${bookId} .dislike-button`);
+
+    if (likeButton) {
+        likeButton.innerHTML = `👍 ${likes}`;
+        likeButton.classList.toggle('active', action === 'like'); // Highlight if liked
+    }
+    if (dislikeButton) {
+        dislikeButton.innerHTML = `👎 ${dislikes}`;
+        dislikeButton.classList.toggle('active', action === 'dislike'); // Highlight if disliked
+    }
 }
 
 function syncLikeDislikeAcrossPages(bookId, likes, dislikes, action) {

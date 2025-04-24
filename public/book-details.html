@@ -51,19 +51,16 @@
           <hr class="bg-light"/>
           <p><strong>Summary:</strong></p>
           <p id="book-details-summary" class="text-muted">Brief summary of the book...</p>
+          <div class="d-flex justify-content-start align-items-center mt-4" id="like-dislike-section">
+            <button class="like-button">
+                <i class="fas fa-thumbs-up"></i> <span id="like-count">0</span>
+            </button>
+            <button class="dislike-button ml-3">
+                <i class="fas fa-thumbs-down"></i> <span id="dislike-count">0</span>
+            </button>
+        </div>
         </div>
       </div>
-
-      <!-- Like/Dislike Buttons -->
-<div class="like-dislike-buttons mt-4 justify-content-center" id="like-dislike-section">
-    <button class="like-button" onclick="handleLikeDislike(currentBookId, 'like')">
-      <i class="fas fa-thumbs-up"></i> <span id="like-count">0</span>
-    </button>
-    <button class="dislike-button" onclick="handleLikeDislike(currentBookId, 'dislike')">
-      <i class="fas fa-thumbs-down"></i> <span id="dislike-count">0</span>
-    </button>
-  </div>
-  
 
       <!-- Admin Edit Panel -->
       <div id="admin-edit-fields" class="mt-4" style="display: none;" data-book-id="">
