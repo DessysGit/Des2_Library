@@ -40,8 +40,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Check authentication status and adjust UI elements
     const isLoggedIn = await checkAuthStatus();
 
-    // Fetch books only if the user is logged in
-    if (isLoggedIn) {
+    // Fetch books only if the user is logged in and the search section exists
+    if (isLoggedIn && searchBooksSection) {
         fetchBooks();
     }
 
@@ -329,6 +329,12 @@ async function fetchBooks(query = "", page = 1) {
     const titleInput = document.getElementById('search-title');
     const authorInput = document.getElementById('search-author');
     const genreInput = document.getElementById('search-genre');
+
+    // Ensure the required elements exist before proceeding
+    if (!titleInput || !authorInput || !genreInput) {
+        console.warn("fetchBooks called on a page without search inputs.");
+        return;
+    }
 
     const title = titleInput ? titleInput.value : query;
     const author = authorInput ? authorInput.value : "";
@@ -849,19 +855,20 @@ async function checkAuthStatus() {
 
 // Function to handle like and dislike actions
 async function handleLikeDislike(bookId, action) {
-  try {
-    const response = await fetch(`/books/${bookId}/${action}`, { method: 'POST' });
-    if (response.ok) {
-      const { likes, dislikes } = await response.json();
-      updateLikeDislikeUI(bookId, likes, dislikes, action);
-    } else {
-      const errorMessage = await response.text();
-      alert('Failed to update like/dislike: ' + errorMessage);
+    try {
+        const response = await fetch(`/books/${bookId}/${action}`, { method: 'POST' });
+        if (response.ok) {
+            const { likes, dislikes } = await response.json();
+            updateLikeDislikeUI(bookId, likes, dislikes, action);
+        } else {
+            const errorMessage = await response.text();
+            console.error('Failed to update like/dislike:', errorMessage);
+            alert('Failed to update like/dislike: ' + errorMessage);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to update like/dislike. Please check your server connection.');
     }
-  } catch (error) {
-    console.error('Error:', error);
-    alert('Failed to update like/dislike: ' + error.message);
-  }
 }
 
 function updateLikeDislikeUI(bookId, likes, dislikes, action) {

@@ -258,17 +258,24 @@
     async function handleLikeDislike(bookId, action) {
       try {
         const res = await fetch(`/books/${bookId}/${action}`, { method: 'POST' });
-        if (!res.ok) throw new Error('Failed to update');
+        if (res.ok) {
+          const updated = await res.json();
+          const likes = updated.likes || 0;
+          const dislikes = updated.dislikes || 0;
   
-        const updated = await res.json();
-        const likes = updated.likes || 0;
-        const dislikes = updated.dislikes || 0;
-  
-        setUserAction(bookId, action);
-        updateLikeUI(likes, dislikes, action);
-        syncLikeDislikeAcrossPages(bookId, likes, dislikes, action);
+          setUserAction(bookId, action);
+          updateLikeUI(likes, dislikes, action);
+          syncLikeDislikeAcrossPages(bookId, likes, dislikes, action);
+        } else {
+          const errorMessage = await res.text();
+          if (errorMessage.includes('already')) {
+            alert(`You have already ${action}d this book.`);
+          } else {
+            throw new Error(errorMessage);
+          }
+        }
       } catch (err) {
-        console.error(err);
+        console.error('Error:', err.message);
         alert('Failed to update like/dislike.');
       }
     }
