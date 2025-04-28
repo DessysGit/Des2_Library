@@ -12,9 +12,15 @@ const fs = require('fs');
 const axios = require('axios');
 const { body, validationResult } = require('express-validator');
 const rateLimit = require('express-rate-limit');
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+
+
 
 const app = express();
 const PORT = 3000;
+
+app.use('/chatbot', express.static(path.join(__dirname, 'chatbot')));
+
 
 // Middleware setup
 app.use(express.urlencoded({ extended: true }));
@@ -855,6 +861,42 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).send('Something went wrong!');
+});
+
+// Endpoint to handle chat with AI
+// This endpoint uses the Hugging Face API to interact with the Mistral-7B-Instruct model
+const HUGGINGFACE_API_KEY = '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';
+
+app.post('/api/chat', async (req, res) => {
+  const userMessage = req.body.message;
+
+  try {
+    const response = await fetch('https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${HUGGINGFACE_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ inputs: userMessage })
+    });
+
+    if (!response.ok) {
+      console.error('Hugging Face API error:', response.status, response.statusText);
+      return res.status(response.status).json({ reply: 'Oops! Something went wrong with the AI.' });
+    }
+
+    const data = await response.json();
+
+    console.log('Hugging Face API response:', data);
+
+    // Correctly extract the generated text
+    const reply = data?.[0]?.generated_text || 'Sorry, I didn’t understand that.';
+
+    res.json({ reply });
+  } catch (error) {
+    console.error('Hugging Face API error:', error.message);
+    res.status(500).json({ reply: 'Oops! Something went wrong with the AI.' });
+  }
 });
 
 // Start the server

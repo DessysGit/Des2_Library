@@ -443,9 +443,25 @@
     star.classList.toggle('active', index < value);
   });
 }
-
   </script>
   
-  
+  <!-- Floating Chat -->
+<div id="chat-icon" onclick="toggleChatbox()">💬</div>
+
+<div id="chatbox" class="hidden">
+  <div id="chat-header">
+    <span>Ask AI</span>
+    <button onclick="toggleChatbox()">✖</button>
+  </div>
+  <div id="messages"></div>
+  <div id="input-area">
+    <input type="text" id="user-input" placeholder="Ask me something..." />
+    <button onclick="sendMessage()">Send</button>
+  </div>
+</div>
+
+<link rel="stylesheet" href="chatbot/chat.css" />
+<script src="chatbot/chat.js"></script>
+
 </body>
 </html>
