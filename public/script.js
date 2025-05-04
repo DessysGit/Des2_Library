@@ -113,6 +113,9 @@ async function login() {
         // Fetch fresh books and reset search/recommendations
         fetchBooks(); // Fetch books after login
         fetchRecommendations(); // Fetch recommendations after login
+
+        const chatIcon = document.getElementById('chat-icon');
+        if (chatIcon) chatIcon.style.display = 'block'; // Show chatbot icon after login
     } else {
         const errorMessage = await response.text();
         alert('Failed to login: ' + errorMessage);
@@ -168,6 +171,9 @@ async function logout() {
         if (sidebar && sidebar.classList.contains('active')) {
             sidebar.classList.remove('active');
         }
+
+        const chatIcon = document.getElementById('chat-icon');
+        if (chatIcon) chatIcon.style.display = 'none'; // Hide chatbot icon after logout
     } else {
         alert('Failed to log out');
     }
@@ -846,14 +852,20 @@ async function checkAuthStatus() {
                 if (addBookLink) addBookLink.style.display = 'none';
             }
 
+            const chatIcon = document.getElementById('chat-icon');
+            if (chatIcon) chatIcon.style.display = 'block'; // Show chatbot icon if user is authenticated
             return true; // User is authenticated
         } else {
             showLoginForm();
+            const chatIcon = document.getElementById('chat-icon');
+            if (chatIcon) chatIcon.style.display = 'none'; // Hide chatbot icon if user is not authenticated
             return false; // User is not authenticated
         }
     } catch (error) {
         console.error('Error checking auth status:', error);
         showLoginForm();
+        const chatIcon = document.getElementById('chat-icon');
+        if (chatIcon) chatIcon.style.display = 'none'; // Hide chatbot icon on error
         return false; // User is not authenticated
     }
 }
@@ -864,7 +876,15 @@ async function handleLikeDislike(bookId, action) {
         const response = await fetch(`/books/${bookId}/${action}`, { method: 'POST' });
         if (response.ok) {
             const { likes, dislikes } = await response.json();
-            updateLikeDislikeUI(bookId, likes, dislikes, action);
+
+            // Update the like/dislike counts on the book-details page
+            if (document.getElementById('like-count') && document.getElementById('dislike-count')) {
+                document.getElementById('like-count').innerText = likes;
+                document.getElementById('dislike-count').innerText = dislikes;
+            }
+
+            // Update the like/dislike UI on the main page dynamically
+            syncLikeDislikeAcrossPages(bookId, likes, dislikes, action);
         } else {
             const errorMessage = await response.text();
             console.error('Failed to update like/dislike:', errorMessage);
@@ -876,7 +896,7 @@ async function handleLikeDislike(bookId, action) {
     }
 }
 
-function updateLikeDislikeUI(bookId, likes, dislikes, action) {
+function syncLikeDislikeAcrossPages(bookId, likes, dislikes, action) {
     const likeButton = document.querySelector(`#book-${bookId} .like-button`);
     const dislikeButton = document.querySelector(`#book-${bookId} .dislike-button`);
 
@@ -888,20 +908,6 @@ function updateLikeDislikeUI(bookId, likes, dislikes, action) {
         dislikeButton.innerHTML = `👎 ${dislikes}`;
         dislikeButton.classList.toggle('active', action === 'dislike'); // Highlight if disliked
     }
-}
-
-function syncLikeDislikeAcrossPages(bookId, likes, dislikes, action) {
-  const likeBtn = document.querySelector(`#book-${bookId} .like-button`);
-  const dislikeBtn = document.querySelector(`#book-${bookId} .dislike-button`);
-
-  if (likeBtn) {
-    likeBtn.classList.toggle('active', action === 'like');
-    likeBtn.innerHTML = `👍 ${likes}`;
-  }
-  if (dislikeBtn) {
-    dislikeBtn.classList.toggle('active', action === 'dislike');
-    dislikeBtn.innerHTML = `👎 ${dislikes}`;
-  }
 }
 
 // Function to fetch and display detailed information about a selected book

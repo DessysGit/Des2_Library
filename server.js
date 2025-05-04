@@ -644,23 +644,49 @@ app.post('/books/:id/like', isAuthenticated, (req, res) => {
                 return res.status(400).send('You have already liked this book');
             }
 
-            db.run('BEGIN TRANSACTION');
-            if (row && row.action === 'dislike') {
-                db.run('UPDATE books SET dislikes = MAX(dislikes - 1, 0) WHERE id = ?', [bookId]); // Ensure dislikes do not go below zero
-            }
-            db.run('UPDATE books SET likes = likes + 1 WHERE id = ?', [bookId]);
-            db.run('INSERT OR REPLACE INTO likes (userId, bookId, action) VALUES (?, ?, ?)', [userId, bookId, 'like']);
-            db.run('COMMIT', (err) => {
+            db.run('BEGIN TRANSACTION', (err) => {
                 if (err) {
-                    console.error('Error committing transaction:', err);
-                    return res.status(500).send('Failed to like book');
+                    console.error('Transaction begin error:', err);
+                    return res.status(500).send('Transaction error');
                 }
-                db.get('SELECT likes, dislikes FROM books WHERE id = ?', [bookId], (err, row) => {
-                    if (err) {
-                        console.error('Error fetching book likes/dislikes:', err);
-                        return res.status(500).send('Failed to fetch book likes/dislikes');
-                    }
-                    res.json(row);
+
+                const updateDislikes = row && row.action === 'dislike'
+                    ? 'UPDATE books SET dislikes = MAX(dislikes - 1, 0) WHERE id = ?'
+                    : null;
+
+                const queries = [
+                    updateDislikes && [updateDislikes, [bookId]],
+                    ['UPDATE books SET likes = likes + 1 WHERE id = ?', [bookId]],
+                    ['INSERT OR REPLACE INTO likes (userId, bookId, action) VALUES (?, ?, ?)', [userId, bookId, 'like']]
+                ].filter(Boolean);
+
+                let completed = 0;
+
+                queries.forEach(([query, params]) => {
+                    db.run(query, params, (err) => {
+                        if (err) {
+                            console.error('Error executing query:', query, err);
+                            return db.run('ROLLBACK', () => res.status(500).send('Failed to like book'));
+                        }
+
+                        completed++;
+                        if (completed === queries.length) {
+                            db.run('COMMIT', (err) => {
+                                if (err) {
+                                    console.error('Commit failed:', err);
+                                    return res.status(500).send('Commit error');
+                                }
+
+                                db.get('SELECT likes, dislikes FROM books WHERE id = ?', [bookId], (err, row) => {
+                                    if (err) {
+                                        console.error('Error fetching book data:', err);
+                                        return res.status(500).send('Error fetching book data');
+                                    }
+                                    res.json(row);
+                                });
+                            });
+                        }
+                    });
                 });
             });
         });
@@ -683,23 +709,49 @@ app.post('/books/:id/dislike', isAuthenticated, (req, res) => {
                 return res.status(400).send('You have already disliked this book');
             }
 
-            db.run('BEGIN TRANSACTION');
-            if (row && row.action === 'like') {
-                db.run('UPDATE books SET likes = MAX(likes - 1, 0) WHERE id = ?', [bookId]); // Ensure likes do not go below zero
-            }
-            db.run('UPDATE books SET dislikes = dislikes + 1 WHERE id = ?', [bookId]);
-            db.run('INSERT OR REPLACE INTO likes (userId, bookId, action) VALUES (?, ?, ?)', [userId, bookId, 'dislike']);
-            db.run('COMMIT', (err) => {
+            db.run('BEGIN TRANSACTION', (err) => {
                 if (err) {
-                    console.error('Error committing transaction:', err);
-                    return res.status(500).send('Failed to dislike book');
+                    console.error('Transaction begin error:', err);
+                    return res.status(500).send('Transaction error');
                 }
-                db.get('SELECT likes, dislikes FROM books WHERE id = ?', [bookId], (err, row) => {
-                    if (err) {
-                        console.error('Error fetching book likes/dislikes:', err);
-                        return res.status(500).send('Failed to fetch book likes/dislikes');
-                    }
-                    res.json(row);
+
+                const updateLikes = row && row.action === 'like'
+                    ? 'UPDATE books SET likes = MAX(likes - 1, 0) WHERE id = ?'
+                    : null;
+
+                const queries = [
+                    updateLikes && [updateLikes, [bookId]],
+                    ['UPDATE books SET dislikes = dislikes + 1 WHERE id = ?', [bookId]],
+                    ['INSERT OR REPLACE INTO likes (userId, bookId, action) VALUES (?, ?, ?)', [userId, bookId, 'dislike']]
+                ].filter(Boolean);
+
+                let completed = 0;
+
+                queries.forEach(([query, params]) => {
+                    db.run(query, params, (err) => {
+                        if (err) {
+                            console.error('Error executing query:', query, err);
+                            return db.run('ROLLBACK', () => res.status(500).send('Failed to dislike book'));
+                        }
+
+                        completed++;
+                        if (completed === queries.length) {
+                            db.run('COMMIT', (err) => {
+                                if (err) {
+                                    console.error('Commit failed:', err);
+                                    return res.status(500).send('Commit error');
+                                }
+
+                                db.get('SELECT likes, dislikes FROM books WHERE id = ?', [bookId], (err, row) => {
+                                    if (err) {
+                                        console.error('Error fetching book data:', err);
+                                        return res.status(500).send('Error fetching book data');
+                                    }
+                                    res.json(row);
+                                });
+                            });
+                        }
+                    });
                 });
             });
         });
@@ -796,13 +848,21 @@ app.get('/books/:id/reviews', (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
 
-    db.all('SELECT username, text FROM reviews WHERE bookId = ? LIMIT ? OFFSET ?', [bookId, limit, offset], (err, rows) => {
-        if (err) {
-            console.error('Error fetching reviews:', err);
-            return res.status(500).send('Failed to fetch reviews');
+    db.all(
+        `SELECT reviews.username, reviews.text, reviews.rating, users.profilePicture 
+         FROM reviews 
+         JOIN users ON reviews.userId = users.id 
+         WHERE reviews.bookId = ? 
+         LIMIT ? OFFSET ?`,
+        [bookId, limit, offset],
+        (err, rows) => {
+            if (err) {
+                console.error('Error fetching reviews:', err);
+                return res.status(500).send('Failed to fetch reviews');
+            }
+            res.json(rows);
         }
-        res.json(rows);
-    });
+    );
 });
 
 // Endpoint to submit a review for a book
