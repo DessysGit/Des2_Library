@@ -126,8 +126,11 @@ async function login() {
 async function logout() {
     const response = await fetch('/logout', { method: 'POST' });
     if (response.ok) {
-        document.getElementById('login-username').value = "";
-        document.getElementById('login-password').value = "";
+        const loginUsername = document.getElementById('login-username');
+        const loginPassword = document.getElementById('login-password');
+        if (loginUsername) loginUsername.value = ""; // Check if element exists before setting value
+        if (loginPassword) loginPassword.value = ""; // Check if element exists before setting value
+
         const hamburgerButton = document.getElementById('hamburger-button');
         const searchBooksSection = document.getElementById('search-books');
         const loginForm = document.getElementById('login-form');
