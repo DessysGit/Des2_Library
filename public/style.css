@@ -150,8 +150,8 @@ body {
 /* 📚 Book Card Design */
 .book-item {
     display: flex;
-    align-items: center;
-    justify-content: space-between; /* Ensure buttons are aligned to the side */
+    align-items: flex-start;
+    justify-content: flex-start;
     background: rgba(255, 255, 255, 0.08); /* Subtle transparency */
     backdrop-filter: blur(10px);
     border-radius: 12px;
@@ -160,6 +160,7 @@ body {
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); /* Green glow */
     transition: transform 0.3s ease, box-shadow 0.3s ease, backdrop-filter 0.3s ease; /* Smooth transition for blur */
     border: 1px solid rgba(29, 185, 84, 0.3);
+    position: relative;
 }
 
 .book-item:hover {
@@ -176,57 +177,98 @@ body {
     object-fit: cover;
     box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
     margin-right: 20px;
+    flex-shrink: 0;
 }
 
 /* Book Details */
 .book-item .details {
     flex: 1;
-    margin-right: 20px; /* Add spacing between details and buttons */
+    margin-right: 0;
     color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
 }
 
-.book-item .details h5 {
-    font-size: 22px;
-    font-weight: bold;
-    color: #1DB954; /* Keeping your original color */
+.book-item .details-content {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    width: 100%;
 }
 
-.book-item .details p {
-    font-size: 16px;
-    opacity: 0.8;
+.book-item .main-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    position: relative;
 }
 
-.book-item .details button {
-    width: auto; /* Change from full width to auto */
-    padding: 5px 10px; /* Adjust padding for a smaller size */
-    font-size: 14px; /* Reduce font size */
-    margin-left: 10px; /* Push the button to the right */
-    margin-top: 10px; /* Add spacing from the content above */
+/* Remove the description-actions-row flex effect and revert description centering */
+.book-item .main-info .description-text {
+    flex: unset;
+    margin: 0 auto;
+    padding: 0;
+    text-align: center;
+    width: 100%;
 }
 
-/* Buttons */
 .book-item .actions {
     display: flex;
-    flex-direction: column; /* Stack buttons vertically */
-    gap: 10px; /* Add spacing between buttons */
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-end;
+    margin-left: 20px;
+    margin-top: 0;
+    min-width: 100px;
 }
 
 .book-item .actions button,
 .book-item .actions a {
     background: #1DB954;
     border: none;
-    padding: 8px 12px;
+    padding: 8px 16px;
     color: black;
     font-weight: bold;
     border-radius: 5px;
     text-decoration: none;
     transition: background 0.3s ease-in-out;
+    width: 100px;
+    text-align: center;
 }
 
 .book-item .actions button:hover,
 .book-item .actions a:hover {
     background: #17a647;
     color: white;
+}
+
+/* Place the delete button at the top right of the book card, absolutely positioned */
+.book-item .delete-action {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    z-index: 2;
+}
+
+.book-item .delete-action button {
+    background: #dc3545;
+    color: #fff;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 14px;
+    transition: background 0.2s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.book-item .delete-action button:hover {
+    background: #b52a37;
+    color: #fff;
 }
 
 /* Search Bar */

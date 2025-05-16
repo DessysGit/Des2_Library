@@ -147,21 +147,8 @@
   </div>
 </section>
 
-<!-- Yellow line to separate recommendations and footer -->
-<script>
-  document.addEventListener('DOMContentLoaded', async () => {
-    const userRes = await fetch('/current-user');
-    if (userRes.ok) {
-      const user = await userRes.json();
-      if (user.role === 'admin') {
-        const yellowLine = document.createElement('hr');
-        yellowLine.style.border = '2px solid yellow';
-        yellowLine.style.margin = '2rem 0';
-        document.getElementById('recommendations-section').insertAdjacentElement('afterend', yellowLine);
-      }
-    }
-  });
-</script>
+<!-- Yellow line to separate recommendations and footer 
+<hr style="border: 2px solid yellow; margin: 2rem 0;">  -->
 
   <!-- Footer -->
   <footer class="footer mt-4" id="footer">

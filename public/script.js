@@ -380,11 +380,20 @@ async function fetchBooks(query = "", page = 1) {
                 bookItem.classList.add('book-item');
                 bookItem.id = `book-${book.id}`;
                 bookItem.innerHTML = `
+                    ${userRole === 'admin' ? `
+                        <div class="delete-action">
+                            <button class="btn btn-danger btn-sm" onclick="confirmDeleteBook(${book.id}, '${book.title.replace(/'/g, "\\'")}')">Delete</button>
+                        </div>
+                    ` : ''}
                     <img src="/uploads/${book.cover}" alt="Cover Image">
                     <div class="details">
-                        <h5>${book.title}</h5>
-                        <p><strong>Author: </strong> ${book.author}</p>
-                        <p>${book.description}</p>
+                        <div class="details-content">
+                            <div class="main-info">
+                                <h5>${book.title}</h5>
+                                <p><strong>Author: </strong> ${book.author}</p>
+                                <p class="description-text">${book.description}</p>
+                            </div>
+                        </div>
                         <div class="like-dislike-ratings">
                             <div class="like-dislike-buttons">
                                 <button class="like-button" onclick="handleLikeDislike(${book.id}, 'like')">👍 ${book.likes || 0}</button>
@@ -555,10 +564,10 @@ async function deleteUser(userId) {
 }
 
 function confirmDeleteUser(userId, username) {
-    if (confirm(`Are you sure you want to delete '${username}'?`)) {
-      deleteUser(userId);
+    if (confirm(`Are you sure you want to delete user "${username}"? This action cannot be undone.`)) {
+        deleteUser(userId);
     }
-  }
+}
 
 // Function to add a book
 async function addBook() {
@@ -1020,43 +1029,11 @@ function deleteBookDetails() {
     }
 }
 
-// Update book list to include a "View Details" button
-function updateBookList(books) {
-    const bookList = document.getElementById('book-list');
-    bookList.innerHTML = "";
-    books.forEach(book => {
-        const bookItem = document.createElement('div');
-        bookItem.classList.add('book-item');
-        bookItem.id = `book-${book.id}`;
-        bookItem.innerHTML = `
-            <img src="/uploads/${book.cover}" alt="Cover Image">
-            <div class="details">
-                <h5>${book.title}</h5>
-                <p><strong>Author: </strong> ${book.author}</p>
-                <p>${book.description}</p>
-                <div class="like-dislike-ratings">
-                    <div class="like-dislike-buttons">
-                        <button class="like-button" onclick="handleLikeDislike(${book.id}, 'like')">👍 ${book.likes || 0}</button>
-                        <button class="dislike-button" onclick="handleLikeDislike(${book.id}, 'dislike')">👎 ${book.dislikes || 0}</button>
-                    </div>
-                    <button class="btn btn-secondary btn-sm mt-2" onclick="showBookDetails(${book.id})">Download</button>
-                    <div class="ratings">
-                        <span>
-                            <i class="fas fa-star text-warning"></i> 
-                            ${book.averageRating ? book.averageRating.toFixed(1) : 'N/A'} (${book.totalRatings || 0} ratings)
-                        </span>
-                    </div>
-                </div>
-            </div>
-            ${book.isAdmin ? `
-                <div class="actions">
-                    <button class="btn btn-warning btn-sm" onclick="editBook(${book.id})">Edit</button>
-                    <button class="btn btn-danger btn-sm" onclick="deleteBook(${book.id})">Delete</button>
-                </div>
-            ` : ""}
-        `;
-        bookList.appendChild(bookItem);
-    });
+// Add this helper if not present
+function confirmDeleteBook(bookId, bookTitle) {
+    if (confirm(`Are you sure you want to delete the book "${bookTitle}"?`)) {
+        deleteBook(bookId);
+    }
 }
 
 // Function to fetch and display recommendations
