@@ -435,6 +435,18 @@ body {
     color: white;
 }
 
+/* Revoke Admin Button */
+.btn-revoke {
+  background-color: #ff9800;
+  color: #fff;
+  border: none;
+}
+
+.btn-revoke:hover, .btn-revoke:focus {
+  background-color: #e68900;
+  color: #fff;
+}
+
 /* Profile Picture */
 #profile-picture {
     border-radius: 50%;
@@ -766,6 +778,27 @@ button:active::after {
     width: auto; /* Allow buttons to adjust width dynamically */
     padding: 8px 16px; /* Increase padding for a wider appearance */
     font-size: 16px; /* Slightly larger font size */
+}
+
+/* Table Styles */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.table thead th {
+  color: #1DB954;
+  border-bottom: 2px solid #1DB954;
+}
+
+.table td, .table th {
+  vertical-align: middle;
+}
+
+.btn-sm {
+  padding: 6px 10px;
+  font-size: 14px;
 }
 
 

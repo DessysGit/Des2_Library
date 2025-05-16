@@ -496,27 +496,23 @@ async function fetchUsers() {
             if (userList) {
                 userList.innerHTML = ""; // Clear the list before rendering
                 users.forEach(user => {
-                    const userItem = document.createElement('div');
-                    userItem.classList.add('list-group-item');
+                    const userItem = document.createElement('tr');
                     userItem.innerHTML = `
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <p><strong>Username: </strong> ${user.username}</p>
-                                <p><strong>Role: </strong> ${user.role}</p>
-                            </div>
-                            ${user.username !== seedAdminUsername ? `
-                            ${user.role !== 'admin' ? `
-                            <div>
-                                <button class="btn btn-danger btn-sm" onclick="confirmDeleteUser(${user.id}, '${user.username}')">Delete</button>
-                                <button class="btn btn-primary btn-sm" onclick="grantAdmin(${user.id})">Grant Admin</button>
-                            </div>
-                            ` : `
-                            <div>
-                                <button class="btn btn-secondary btn-sm" onclick="revokeAdmin(${user.id})">Revoke Admin</button>
-                            </div>`}
-                            ` : ""}
-                        </div>
-                    `;
+  <tr>
+    <td>${user.username}</td>
+    <td>${user.role}</td>
+    <td class="text-center">
+      ${user.username !== seedAdminUsername ? `
+        ${user.role !== 'admin' ? `
+          <button class="btn btn-success btn-sm mb-1" onclick="grantAdmin(${user.id})">Grant Admin</button>
+          <button class="btn btn-danger btn-sm" onclick="confirmDeleteUser(${user.id}, '${user.username}')">Delete</button>
+        ` : `
+          <button class="btn btn-revoke btn-sm" onclick="revokeAdmin(${user.id})">Revoke Admin</button>
+        `}
+      ` : '<span class="text-muted">Protected</span>'}
+    </td>
+  </tr>
+`;
                     userList.appendChild(userItem);
                 });
             }

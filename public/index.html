@@ -196,13 +196,30 @@
 
         <!-- Admin Section to Manage Users -->
         <div id="admin-section" class="mt-4" style="display: none;">
-            <div class="card">
-                <div class="card-body text-center">
-                    <h2 class="card-title">Manage Users</h2>
-                    <ul id="user-list" class="user-list mt-4 list-group"></ul>
-                    <button onclick="showSection('search-books')" class="btn btn-secondary mt-2">Back to Main Page</button>
-                </div>
+          <div class="card shadow-lg bg-dark text-white p-4 border-0">
+            <div class="card-body">
+              <h2 class="card-title text-success text-center mb-4">👥 Manage Users</h2>
+              <div class="table-responsive">
+                <table class="table table-dark table-hover text-white">
+                  <thead class="thead-light">
+                    <tr>
+                      <th scope="col">👤 Username</th>
+                      <th scope="col">🔐 Role</th>
+                      <th scope="col" class="text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="user-list">
+                    <!-- Dynamically injected rows here -->
+                  </tbody>
+                </table>
+              </div>
+              <div class="text-center mt-4">
+                <button onclick="showSection('search-books')" class="btn btn-outline-light">
+                  ← Back to Main Page
+                </button>
+              </div>
             </div>
+          </div>
         </div>
 
         <!-- User Profile Section -->
