@@ -91,6 +91,7 @@ const recalculateAverageRatings = () => {
 
         books.forEach((book) => {
             const bookId = book.id;
+            // TODO: Refactor to reduce nesting (code smell: >4 levels deep)
             db.get(
                 'SELECT AVG(rating) AS averageRating FROM reviews WHERE bookId = ?',
                 [bookId],
@@ -99,7 +100,6 @@ const recalculateAverageRatings = () => {
                         console.error(`Error calculating average rating for book ID ${bookId}:`, err.message);
                         return;
                     }
-
                     const averageRating = row?.averageRating || 0;
                     db.run(
                         'UPDATE books SET averageRating = ? WHERE id = ?',

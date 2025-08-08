@@ -65,7 +65,6 @@ def recommendations():
     tfidf = TfidfVectorizer(stop_words='english')
     df['content'] = df['content'].fillna('')  # Fill NaN values with empty strings
     tfidf_matrix = tfidf.fit_transform(df['content'])
-    cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix)
 
     user_activity = fetch_user_activity(user_id)
     if not user_activity:

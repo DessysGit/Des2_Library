@@ -7,7 +7,7 @@ const path = require('path');
 const subscribersFilePath = path.join(__dirname, 'subscribers.txt');
 
 // Middleware to ensure authentication
-function isAuthenticated(req, res, next) {
+function isAuthenticated(_req, _res, next) {
     // Your authentication logic here
     next();
 }
@@ -29,8 +29,13 @@ router.post('/subscribe', isAuthenticated, (req, res) => {
     }
 
     // Append email to the file
-    fs.appendFileSync(subscribersFilePath, email + '\n');
-    res.send('Subscribed successfully');
+    try {
+        fs.appendFileSync(subscribersFilePath, email + '\n');
+        res.send('Subscribed successfully');
+    } catch (err) {
+        console.error('Error appending to subscribers file:', err); // Log the error
+        res.status(500).send('Failed to subscribe');
+    }
 });
 
 module.exports = router;

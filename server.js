@@ -17,6 +17,7 @@ const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch
 
 
 const app = express();
+app.disable('x-powered-by'); // Hide Express version info
 const PORT = 3000;
 
 app.use('/chatbot', express.static(path.join(__dirname, 'chatbot')));
@@ -29,7 +30,7 @@ app.use(bodyParser.json());
 
 // Initialize Passport and session
 app.use(session({
-    secret: 'your-secret-key',
+    secret: process.env.SESSION_SECRET || 'your-secret-key',
     resave: false,
     saveUninitialized: false,
     cookie: { secure: false } //set to true if using HTTPS
@@ -925,7 +926,7 @@ app.use((err, req, res, next) => {
 
 // Endpoint to handle chat with AI
 // This endpoint uses the Hugging Face API to interact with the Mistral-7B-Instruct model
-const HUGGINGFACE_API_KEY = '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';
+const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY || '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';
 
 app.post('/api/chat', async (req, res) => {
   const userMessage = req.body.message;
