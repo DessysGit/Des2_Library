@@ -205,7 +205,12 @@
     document.addEventListener('DOMContentLoaded', async () => {
       const params = new URLSearchParams(window.location.search);
       currentBookId = params.get('bookId');
-      if (!currentBookId) return alert('Book ID is missing!');
+      if (!currentBookId || currentBookId === "undefined" || isNaN(Number(currentBookId))) {
+        alert('Book ID is missing or invalid!');
+        // Optionally redirect to main page:
+        window.location.href = "index.html";
+        return;
+      }
   
       try {
         // Fetch book details

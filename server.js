@@ -28,12 +28,15 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 app.use(bodyParser.json());
 
+// Ensure SESSION_SECRET is always set for express-session
+const sessionSecret = process.env.SESSION_SECRET || 'dev-secret-key'; // fallback for development
+
 // Initialize Passport and session
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'your-secret-key',
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: false } //set to true if using HTTPS
+    cookie: { secure: process.env.NODE_ENV === 'production' } // Use secure cookies in production
 }));
 app.use(passport.initialize());
 app.use(passport.session());
@@ -926,7 +929,7 @@ app.use((err, req, res, next) => {
 
 // Endpoint to handle chat with AI
 // This endpoint uses the Hugging Face API to interact with the Mistral-7B-Instruct model
-const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY || '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';
+const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY; // Remove fallback key
 
 app.post('/api/chat', async (req, res) => {
   const userMessage = req.body.message;
@@ -964,3 +967,5 @@ app.post('/api/chat', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });
+
+// NOTE: For production, run behind HTTPS and set NODE_ENV=production

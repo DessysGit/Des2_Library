@@ -908,8 +908,8 @@ function syncLikeDislikeAcrossPages(bookId, likes, dislikes, action) {
 
 // Function to fetch and display detailed information about a selected book
 function showBookDetails(bookId) {
-  if (!bookId) {
-    alert('Book ID is missing!');
+  if (!bookId || bookId === "undefined" || isNaN(Number(bookId))) {
+    alert('Book ID is missing or invalid!');
     return;
   }
   window.location.href = `book-details.html?bookId=${bookId}`;
@@ -1039,6 +1039,9 @@ async function fetchRecommendations() {
                             <div class="card-body">
                                 <h5 class="card-title">${recommendation.title}</h5>
                                 <p class="card-text">${recommendation.description}</p>
+                                <a href="book-details.html?bookId=${recommendation.id}" class="btn btn-success w-100 mt-2">
+                                    <i class="fas fa-info-circle"></i> View
+                                </a>
                             </div>
                         </div>
                     `;
