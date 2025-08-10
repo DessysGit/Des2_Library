@@ -14,10 +14,10 @@ const { body, validationResult } = require('express-validator');
 const rateLimit = require('express-rate-limit');
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 const { spawn } = require('child_process');
-
-
+const SQLiteStore = require('connect-sqlite3')(session);
 
 const app = express();
+app.set('trust proxy', 1); // Trust first proxy (required for rate-limit & session cookies on Render)
 app.disable('x-powered-by'); // Hide Express version info
 const PORT = 3000;
 
@@ -26,7 +26,11 @@ app.use('/chatbot', express.static(path.join(__dirname, 'chatbot')));
 
 // Middleware setup
 app.use(express.urlencoded({ extended: true }));
-const allowedOrigin = 'https://strong-paletas-464b32.netlify.app';
+const isProduction = process.env.NODE_ENV === 'production';
+const allowedOrigin = isProduction
+    ? 'https://strong-paletas-464b32.netlify.app'
+    : 'http://localhost:3000';
+
 app.use(cors({
     origin: allowedOrigin,
     credentials: true
@@ -41,7 +45,11 @@ app.use(session({
     secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: process.env.NODE_ENV === 'production' } // Use secure cookies in production
+    store: new SQLiteStore({ db: 'sessions.sqlite', dir: './' }),
+    cookie: {
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax'
+    }
 }));
 app.use(passport.initialize());
 app.use(passport.session());
