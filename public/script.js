@@ -67,6 +67,7 @@ async function login() {
     const response = await fetch(`${API_BASE_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ username, password })
     });
     if (response.ok) {
@@ -129,7 +130,7 @@ async function login() {
 
 // Function to handle logout
 async function logout() {
-    const response = await fetch(`${API_BASE_URL}/logout`, { method: 'POST' });
+    const response = await fetch(`${API_BASE_URL}/logout`, { method: 'POST', credentials: 'include' });
     if (response.ok) {
         const loginUsername = document.getElementById('login-username');
         const loginPassword = document.getElementById('login-password');
@@ -485,7 +486,7 @@ function hideLoadingSpinner() {
 // Function to fetch users and update the user list
 async function fetchUsers() {
     try {
-        const response = await fetch(`${API_BASE_URL}/users`);
+        const response = await fetch(`${API_BASE_URL}/users`, { credentials: 'include' });
         if (response.ok) {
             const users = await response.json();
             const userList = document.getElementById('user-list');
@@ -625,7 +626,7 @@ async function editBook(bookId) {
 
 // Function to delete a book
 async function deleteBook(bookId) {
-    const response = await fetch(`${API_BASE_URL}/books/${bookId}`, { method: 'DELETE' });
+    const response = await fetch(`${API_BASE_URL}/books/${bookId}`, { method: 'DELETE', credentials: 'include' });
     if (response.ok) {
         fetchBooks();
     } else {
@@ -803,7 +804,7 @@ function showProfileSection() {
 // Function to check initial auth status and handle burger menu
 async function checkAuthStatus() {
     try {
-        const response = await fetch(`${API_BASE_URL}/current-user`);
+        const response = await fetch(`${API_BASE_URL}/current-user`, { credentials: 'include' });
         if (response.ok) {
             const user = await response.json();
             userRole = user.role; // Update the global userRole variable
@@ -1031,7 +1032,7 @@ function confirmDeleteBook(bookId, bookTitle) {
 // Function to fetch and display recommendations
 async function fetchRecommendations() {
     try {
-        const response = await fetch(`${API_BASE_URL}/recommendations`);
+        const response = await fetch(`${API_BASE_URL}/recommendations`, { credentials: 'include' });
         if (response.ok) {
             const recommendations = await response.json();
             const recommendationsCarousel = document.querySelector('#recommendations-carousel .carousel-inner');
