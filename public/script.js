@@ -1,7 +1,7 @@
 // Change this to your hosted backend URL when deployed
 const API_BASE_URL = window.location.hostname.includes('localhost')
   ? '' // Local: same origin
-  : 'https://your-backend-name.onrender.com';
+  : 'https://library-backend-j90e.onrender.com';
 
 // Define the seed admin username
 const seedAdminUsername = 'admin';
