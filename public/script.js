@@ -1,3 +1,8 @@
+// Change this to your hosted backend URL when deployed
+const API_BASE_URL = window.location.hostname.includes('localhost')
+  ? '' // Local: same origin
+  : 'https://your-backend-name.onrender.com';
+
 // Define the seed admin username
 const seedAdminUsername = 'admin';
 
@@ -59,7 +64,7 @@ function isUserLoggedIn() {
 async function login() {
     const username = document.getElementById('login-username').value;
     const password = document.getElementById('login-password').value;
-    const response = await fetch('/login', {
+    const response = await fetch(`${API_BASE_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
@@ -124,7 +129,7 @@ async function login() {
 
 // Function to handle logout
 async function logout() {
-    const response = await fetch('/logout', { method: 'POST' });
+    const response = await fetch(`${API_BASE_URL}/logout`, { method: 'POST' });
     if (response.ok) {
         const loginUsername = document.getElementById('login-username');
         const loginPassword = document.getElementById('login-password');
@@ -177,6 +182,9 @@ async function logout() {
 
         const chatIcon = document.getElementById('chat-icon');
         if (chatIcon) chatIcon.style.display = 'none'; // Hide chatbot icon after logout
+
+        // Redirect to login page after logout
+        window.location.href = "index.html";
     } else {
         alert('Failed to log out');
     }
@@ -214,7 +222,7 @@ function setupOutsideClickListener() {
 async function subscribeNewsletter(event) {
     event.preventDefault();
     const email = document.getElementById('subscription-email').value;
-    const response = await fetch('/subscribe', {
+    const response = await fetch(`${API_BASE_URL}/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email })
@@ -308,7 +316,7 @@ function showSection(sectionId) {
 // Add a reusable function to handle fetch errors
 async function fetchWithErrorHandling(url, options = {}) {
     try {
-        const response = await fetch(url, options);
+        const response = await fetch(`${API_BASE_URL}${url}`, options);
         if (!response.ok) {
             const errorMessage = await response.text();
             throw new Error(errorMessage);
@@ -477,7 +485,7 @@ function hideLoadingSpinner() {
 // Function to fetch users and update the user list
 async function fetchUsers() {
     try {
-        const response = await fetch('/users');
+        const response = await fetch(`${API_BASE_URL}/users`);
         if (response.ok) {
             const users = await response.json();
             const userList = document.getElementById('user-list');
@@ -516,7 +524,7 @@ async function fetchUsers() {
 
 // Function to grant admin role to a user
 async function grantAdmin(userId) {
-    const response = await fetch(`/users/${userId}/grant-admin`, { method: 'POST' });
+    const response = await fetch(`${API_BASE_URL}/users/${userId}/grant-admin`, { method: 'POST' });
     if (response.ok) {
         fetchUsers(); // Refresh user list after granting admin role
     } else {
@@ -527,7 +535,7 @@ async function grantAdmin(userId) {
 
 // Function to revoke admin role from a user
 async function revokeAdmin(userId) {
-    const response = await fetch(`/users/${userId}/revoke-admin`, { method: 'POST' });
+    const response = await fetch(`${API_BASE_URL}/users/${userId}/revoke-admin`, { method: 'POST' });
     if (response.ok) {
         fetchUsers(); // Refresh user list after revoking admin role
     } else {
@@ -538,7 +546,7 @@ async function revokeAdmin(userId) {
 
 // Function to delete a user
 async function deleteUser(userId) {
-    const response = await fetch(`/users/${userId}`, { method: 'DELETE' });
+    const response = await fetch(`${API_BASE_URL}/users/${userId}`, { method: 'DELETE' });
     if (response.ok) {
         fetchUsers(); // Refresh user list after deleting user
     } else {
@@ -570,7 +578,7 @@ async function addBook() {
     if (bookFile) formData.append('bookFile', bookFile);
 
     try {
-        const response = await fetch('/addBook', { method: 'POST', body: formData });
+        const response = await fetch(`${API_BASE_URL}/addBook`, { method: 'POST', body: formData });
         if (response.ok) {
             alert('Book added successfully');
             clearAddBookFields(); // Clear fields after successful addition
@@ -601,7 +609,7 @@ async function editBook(bookId) {
     const author = prompt('Enter new author:');
     const description = prompt('Enter new description:');
     if (title && author && description) {
-        const response = await fetch(`/books/${bookId}`, {
+        const response = await fetch(`${API_BASE_URL}/books/${bookId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ title, author, description })
@@ -617,7 +625,7 @@ async function editBook(bookId) {
 
 // Function to delete a book
 async function deleteBook(bookId) {
-    const response = await fetch(`/books/${bookId}`, { method: 'DELETE' });
+    const response = await fetch(`${API_BASE_URL}/books/${bookId}`, { method: 'DELETE' });
     if (response.ok) {
         fetchBooks();
     } else {
@@ -636,7 +644,7 @@ async function register() {
         return;
     }
 
-    const response = await fetch('/register', {
+    const response = await fetch(`${API_BASE_URL}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
@@ -719,7 +727,7 @@ async function updateProfile() {
     const favoriteAuthors = document.getElementById('profile-authors').value;
     const favoriteBooks = document.getElementById('profile-books').value;
 
-    const response = await fetch('/updateProfile', {
+    const response = await fetch(`${API_BASE_URL}/updateProfile`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, favoriteGenres, favoriteAuthors, favoriteBooks })
@@ -737,7 +745,7 @@ async function updateProfile() {
 
 // Function to fetch user profile and display it
 async function fetchProfile() {
-    const response = await fetch('/profile');
+    const response = await fetch(`${API_BASE_URL}/profile`);
     if (response.ok) {
         const user = await response.json();
         document.getElementById('profile-email').value = user.email;
@@ -760,7 +768,7 @@ async function uploadProfilePicture() {
         const formData = new FormData();
         formData.append('profilePicture', fileInput.files[0]);
         try {
-            const response = await fetch('/upload-profile-picture', { method: 'POST', body: formData });
+            const response = await fetch(`${API_BASE_URL}/upload-profile-picture`, { method: 'POST', body: formData });
             if (response.ok) {
                 const data = await response.json();
                 document.getElementById('profile-picture').src = data.profilePictureUrl + '?timestamp=' + new Date().getTime();
@@ -795,7 +803,7 @@ function showProfileSection() {
 // Function to check initial auth status and handle burger menu
 async function checkAuthStatus() {
     try {
-        const response = await fetch('/current-user');
+        const response = await fetch(`${API_BASE_URL}/current-user`);
         if (response.ok) {
             const user = await response.json();
             userRole = user.role; // Update the global userRole variable
@@ -869,7 +877,7 @@ async function checkAuthStatus() {
 // Function to handle like and dislike actions
 async function handleLikeDislike(bookId, action) {
     try {
-        const response = await fetch(`/books/${bookId}/${action}`, { method: 'POST' });
+        const response = await fetch(`${API_BASE_URL}/books/${bookId}/${action}`, { method: 'POST' });
         if (response.ok) {
             const { likes, dislikes } = await response.json();
 
@@ -932,7 +940,7 @@ async function saveBookDetails() {
     };
 
     try {
-        const response = await fetch(`/books/${bookId}`, {
+        const response = await fetch(`${API_BASE_URL}/books/${bookId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(updatedDetails),
@@ -972,7 +980,7 @@ function editBookDetails() {
     const newSummary = prompt('Enter new summary:');
     const newDescription = prompt('Enter new description:');
     if (newTitle && newAuthor && newSummary && newDescription) {
-        fetch(`/books/${bookId}`, {
+        fetch(`${API_BASE_URL}/books/${bookId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ title: newTitle, author: newAuthor, summary: newSummary, description: newDescription })
@@ -996,7 +1004,7 @@ function editBookDetails() {
 function deleteBookDetails() {
     const bookId = document.getElementById('admin-actions').getAttribute('data-book-id');
     if (confirm('Are you sure you want to delete this book?')) {
-        fetch(`/books/${bookId}`, { method: 'DELETE' })
+        fetch(`${API_BASE_URL}/books/${bookId}`, { method: 'DELETE' })
             .then(response => {
                 if (response.ok) {
                     alert('Book deleted successfully.');
@@ -1023,7 +1031,7 @@ function confirmDeleteBook(bookId, bookTitle) {
 // Function to fetch and display recommendations
 async function fetchRecommendations() {
     try {
-        const response = await fetch('/recommendations');
+        const response = await fetch(`${API_BASE_URL}/recommendations`);
         if (response.ok) {
             const recommendations = await response.json();
             const recommendationsCarousel = document.querySelector('#recommendations-carousel .carousel-inner');

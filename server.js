@@ -13,6 +13,7 @@ const axios = require('axios');
 const { body, validationResult } = require('express-validator');
 const rateLimit = require('express-rate-limit');
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+const { spawn } = require('child_process');
 
 
 
@@ -815,6 +816,7 @@ app.get("/recommendations", isAuthenticated, async (req, res) => {
         return res.status(400).json({ error: "User ID is required" });
     }
 
+    // Try external Flask service first (for local dev)
     try {
         const response = await axios.get(`http://127.0.0.1:5000/recommendations?user_id=${encodeURIComponent(userId)}`);
         if (response.data && response.data.recommendations) {
@@ -822,26 +824,52 @@ app.get("/recommendations", isAuthenticated, async (req, res) => {
             const filteredRecommendations = response.data.recommendations
                 .filter((book) => book.id !== parseInt(currentBookId))
                 .slice(0, 4);
-            res.json({ recommendations: filteredRecommendations });
-        } else {
-            console.warn("No recommendations returned from the external service.");
-            res.json({ recommendations: [] });
+            return res.json({ recommendations: filteredRecommendations });
         }
     } catch (error) {
-        console.error("Error fetching recommendations:", error.response?.data || error.message);
+        console.error("Flask service not available, running recommend.py directly.");
 
-        // Fallback: Return up to 4 sample recommendations excluding the current book
-        db.all(
-            'SELECT id, title, description, cover FROM books WHERE id != ? LIMIT 4',
-            [currentBookId],
-            (err, rows) => {
-                if (err) {
-                    console.error("Error fetching fallback recommendations:", err.message);
-                    return res.status(500).json({ error: "Error fetching recommendations" });
-                }
-                res.json({ recommendations: rows });
+        // Detect platform and use correct Python executable
+        const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+
+        const python = spawn(pythonCmd, [
+            path.join(__dirname, 'recommend.py'),
+            '--user_id', userId.toString()
+        ]);
+
+        let output = '';
+        python.stdout.on('data', (data) => {
+            output += data.toString();
+        });
+
+        python.stderr.on('data', (data) => {
+            console.error('recommend.py error:', data.toString());
+        });
+
+        python.on('close', (code) => {
+            try {
+                // Expect recommend.py to print a JSON string
+                const result = JSON.parse(output);
+                const filteredRecommendations = result.recommendations
+                    .filter((book) => book.id !== parseInt(currentBookId))
+                    .slice(0, 4);
+                res.json({ recommendations: filteredRecommendations });
+            } catch (err) {
+                console.error('Error parsing recommend.py output:', err);
+                // Fallback: Return up to 4 sample recommendations excluding the current book
+                db.all(
+                    'SELECT id, title, description, cover FROM books WHERE id != ? LIMIT 4',
+                    [currentBookId],
+                    (err, rows) => {
+                        if (err) {
+                            console.error("Error fetching fallback recommendations:", err.message);
+                            return res.status(500).json({ error: "Error fetching recommendations" });
+                        }
+                        res.json({ recommendations: rows });
+                    }
+                );
             }
-        );
+        });
     }
 });
 

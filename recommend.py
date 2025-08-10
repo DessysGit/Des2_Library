@@ -3,6 +3,8 @@ import pandas as pd
 import sqlite3
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
+import sys
+import json
 
 app = Flask(__name__)
 
@@ -86,4 +88,40 @@ def recommendations():
     return jsonify({"recommendations": recommendations})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--user_id', type=int, help='User ID')
+    args = parser.parse_args()
+
+    if args.user_id:
+        # Run recommendation logic and print JSON
+        user_id = args.user_id
+        books = fetch_books()
+        if not books:
+            print(json.dumps({"recommendations": []}))
+            sys.exit(0)
+        df = books_to_df(books)
+        tfidf = TfidfVectorizer(stop_words='english')
+        df['content'] = df['content'].fillna('')
+        tfidf_matrix = tfidf.fit_transform(df['content'])
+        user_activity = fetch_user_activity(user_id)
+        if not user_activity:
+            recommendations = df.sample(5).to_dict('records')
+            print(json.dumps({"recommendations": recommendations}))
+            sys.exit(0)
+        activity_df = books_to_df(user_activity)
+        activity_df['content'] = activity_df['content'].fillna('')
+        activity_tfidf_matrix = tfidf.transform(activity_df['content'])
+        activity_cosine_sim = linear_kernel(activity_tfidf_matrix, tfidf_matrix)
+        sim_scores = activity_cosine_sim.mean(axis=0)
+        sim_scores = list(enumerate(sim_scores))
+        sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
+        sim_scores = sim_scores[:5]
+        book_indices = [i[0] for i in sim_scores]
+        recommendations = df.iloc[book_indices].to_dict('records')
+        print(json.dumps({"recommendations": recommendations}))
+        sys.exit(0)
+    else:
+        # Only print JSON error and exit if no user_id is provided
+        print(json.dumps({"error": "No user_id provided"}))
+        sys.exit(0)
