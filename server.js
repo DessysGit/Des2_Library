@@ -8,6 +8,8 @@ const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const LocalStrategy = require('passport-local').Strategy;
 const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const fs = require('fs');
 const axios = require('axios');
 const { body, validationResult } = require('express-validator');
@@ -207,11 +209,32 @@ passport.deserializeUser((id, done) => {
 // Middleware to parse JSON
 app.use(express.json());
 
-// Create the uploads directory if it doesn't exist
+// Ensure uploads directory exists and log file uploads
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir);
+    console.log('Created uploads directory:', uploadDir);
 }
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: 'dgxp6sdxa',
+  api_key: '817625651967554',
+  api_secret: 'rHbzIbaZUhkXxuLng1C_CfdqlGU'
+});
+
+// Set up Multer storage to Cloudinary
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'book-covers',
+    allowed_formats: ['jpg', 'png', 'jpeg'],
+    transformation: [
+      { width: 600, height: 800, crop: 'fill', quality: 'auto' }
+    ]
+  },
+});
+const upload = multer({ storage: storage });
 
 // Authentication check middleware
 const isAuthenticated = (req, res, next) => {
@@ -232,17 +255,6 @@ app.use((req, res, next) => {
         next();
     }
 });
-
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/');
-    },
-    filename: (req, file, cb) => {
-        cb(null, file.originalname); // Save file with its original name
-    }
-});
-const upload = multer({ storage: storage, limits: { fileSize: 50000000 } }); // 50 MB limit
 
 // Profile picture upload endpoint
 app.post('/upload-profile-picture', upload.single('profilePicture'), (req, res) => {
@@ -399,7 +411,7 @@ app.get('/books/:id', (req, res) => {
 
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(uploadDir));
 
 // Register route
 app.post('/register', [
@@ -501,6 +513,8 @@ app.post('/addBook', isAdmin, upload.fields([{ name: 'bookCover', maxCount: 1 },
     const genres = JSON.parse(req.body.genres);
     const cover = req.files['bookCover'] ? req.files['bookCover'][0].originalname : null;
     const file = req.files['bookFile'] ? req.files['bookFile'][0].originalname : null;
+    // Log uploaded files for debugging
+    console.log('Uploaded cover:', cover, 'Uploaded file:', file);
     const genresString = genres.join(",");
 
     if (!title || !author || !description || !genresString) {
@@ -959,7 +973,7 @@ app.post('/books/:id/reviews', isAuthenticated, (req, res) => {
 
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(uploadDir));
 
 // Add centralized error handling middleware
 app.use((err, req, res, next) => {
