@@ -12,3 +12,5 @@ package.json
 package-lock.json
 package.json
 *.json
+.env.example
+sessions.sqlite
