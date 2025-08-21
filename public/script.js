@@ -11,11 +11,6 @@ let userRole = "";
 
 // Ensure the necessary elements are hidden on initial load
 document.addEventListener('DOMContentLoaded', async () => {
-    // Remove light mode initialization
-    // if (localStorage.getItem('lightMode') === 'enabled') {
-    //     document.body.classList.add('light-mode');
-    // }
-
     const hamburgerButton = document.getElementById('hamburger-button');
     const searchBooksSection = document.getElementById('search-books');
     const manageUsersLink = document.getElementById('manage-users-link');
@@ -102,9 +97,10 @@ async function login() {
 
         // Update sidebar with user info
         document.getElementById('burger-username').innerText = user.username;
-        if (user.profilePicture) {
-            document.getElementById('burger-profile-picture').src = user.profilePicture + '?timestamp=' + new Date().getTime();
-        }
+       if (user.profilePicture) {
+    document.getElementById('burger-profile-picture').src = user.profilePicture + '?timestamp=' + new Date().getTime();
+}
+
 
         // Clear add-book fields
         if (addBookForm) {
@@ -330,7 +326,7 @@ async function fetchWithErrorHandling(url, options = {}) {
     }
 }
 
-// Example: Use fetchWithErrorHandling in fetchBooks
+// Using fetchWithErrorHandling in fetchBooks
 async function fetchBooks(query = "", page = 1) {
     const titleInput = document.getElementById('search-title');
     const authorInput = document.getElementById('search-author');
@@ -373,6 +369,11 @@ async function fetchBooks(query = "", page = 1) {
         if (bookList) {
             bookList.innerHTML = "";
             books.forEach(book => {
+                // Fix: prepend API_BASE_URL if cover is a relative path
+                let coverUrl = book.cover;
+                if (coverUrl && coverUrl.startsWith('/uploads/')) {
+                    coverUrl = API_BASE_URL + coverUrl;
+                }
                 const bookItem = document.createElement('div');
                 bookItem.classList.add('book-item');
                 bookItem.id = `book-${book.id}`;
@@ -382,7 +383,7 @@ async function fetchBooks(query = "", page = 1) {
                             <button class="btn btn-danger btn-sm" onclick="confirmDeleteBook(${book.id}, '${book.title.replace(/'/g, "\\'")}')">Delete</button>
                         </div>
                     ` : ''}
-                    <img src="/uploads/${book.cover}" alt="Cover Image">
+                    <img src="${coverUrl}" alt="Cover Image">
                     <div class="details">
                         <div class="details-content">
                             <div class="main-info">
@@ -570,16 +571,22 @@ async function addBook() {
     const genres = document.getElementById('genres').value.split(",").map(genre => genre.trim());
     const bookCover = document.getElementById('book-cover').files[0];
     const bookFile = document.getElementById('book-file').files[0];
+
     const formData = new FormData();
     formData.append('title', title);
     formData.append('author', author);
     formData.append('description', description);
     formData.append('genres', JSON.stringify(genres));
-    if (bookCover) formData.append('bookCover', bookCover);
+
+    if (bookCover) formData.append('cover', bookCover); 
     if (bookFile) formData.append('bookFile', bookFile);
 
     try {
-        const response = await fetch(`${API_BASE_URL}/addBook`, { method: 'POST', body: formData, credentials: 'include' });
+        const response = await fetch(`${API_BASE_URL}/addBook`, { 
+            method: 'POST', 
+            body: formData, 
+            credentials: 'include' 
+        });
         if (response.ok) {
             alert('Book added successfully');
             clearAddBookFields(); // Clear fields after successful addition
@@ -593,6 +600,7 @@ async function addBook() {
         alert('Failed to add book: ' + error.message);
     }
 }
+
 
 // Function to clear add book fields
 function clearAddBookFields() {
@@ -632,6 +640,11 @@ async function deleteBook(bookId) {
     } else {
         const errorMessage = await response.text();
         alert('Failed to delete book: ' + errorMessage);
+    }
+}
+function confirmDeleteBook(bookId, bookTitle) {
+    if (confirm(`Are you sure you want to delete the book "${bookTitle}"?`)) {
+        deleteBook(bookId);
     }
 }
 
@@ -769,11 +782,15 @@ async function uploadProfilePicture() {
         const formData = new FormData();
         formData.append('profilePicture', fileInput.files[0]);
         try {
-            const response = await fetch(`${API_BASE_URL}/upload-profile-picture`, { method: 'POST', body: formData });
+            const response = await fetch(`${API_BASE_URL}/upload-profile-picture`, {
+                method: 'POST',
+                body: formData,
+                credentials: 'include' 
+            });
             if (response.ok) {
                 const data = await response.json();
-                document.getElementById('profile-picture').src = data.profilePictureUrl + '?timestamp=' + new Date().getTime();
-                document.getElementById('burger-profile-picture').src = data.profilePictureUrl + '?timestamp=' + new Date().getTime();
+                document.getElementById('profile-picture').src = data.profilePicture + '?timestamp=' + new Date().getTime();
+                document.getElementById('burger-profile-picture').src = data.profilePicture + '?timestamp=' + new Date().getTime();
                 alert('Profile picture uploaded successfully.');
             } else {
                 const errorMessage = await response.text();
@@ -844,9 +861,10 @@ async function checkAuthStatus() {
             if (profilePicture && user.profilePicture) {
                 profilePicture.src = user.profilePicture + '?timestamp=' + new Date().getTime();
             }
-            if (burgerProfilePicture && user.profilePicture) {
+            if (burgerProfilePicture && user.profilePicture) { 
                 burgerProfilePicture.src = user.profilePicture + '?timestamp=' + new Date().getTime();
             }
+
 
             // Update admin links and buttons based on user role
             if (userRole === 'admin') {
@@ -1022,29 +1040,31 @@ function deleteBookDetails() {
     }
 }
 
-// Add this helper if not present
-function confirmDeleteBook(bookId, bookTitle) {
-    if (confirm(`Are you sure you want to delete the book "${bookTitle}"?`)) {
-        deleteBook(bookId);
-    }
-}
-
 // Function to fetch and display recommendations
 async function fetchRecommendations() {
     try {
         const response = await fetch(`${API_BASE_URL}/recommendations`, { credentials: 'include' });
         if (response.ok) {
-            const recommendations = await response.json();
+            const data = await response.json();
+            const recommendations = data.recommendations || []; // safer extraction
             const recommendationsCarousel = document.querySelector('#recommendations-carousel .carousel-inner');
+
             if (recommendationsCarousel) {
                 recommendationsCarousel.innerHTML = ""; // Clear existing recommendations
                 recommendations.forEach((recommendation, index) => {
                     const item = document.createElement('div');
                     item.classList.add('carousel-item');
                     if (index === 0) item.classList.add('active'); // Set the first item as active
+
+                    // Fix: prepend API_BASE_URL if cover is a relative path
+                    let coverUrl = recommendation.cover;
+                    if (coverUrl && coverUrl.startsWith('/uploads/')) {
+                        coverUrl = API_BASE_URL + coverUrl;
+                    }
+
                     item.innerHTML = `
                         <div class="card">
-                            <img src="/uploads/${recommendation.cover}" alt="${recommendation.title}">
+                            <img src="${coverUrl}" alt="${recommendation.title}">
                             <div class="card-body">
                                 <h5 class="card-title">${recommendation.title}</h5>
                                 <p class="card-text">${recommendation.description}</p>
@@ -1064,14 +1084,6 @@ async function fetchRecommendations() {
         console.error('Error fetching recommendations:', error);
     }
 }
-
-// Call the necessary functions on page load
-document.addEventListener('DOMContentLoaded', () => {
-    // Check initial auth status and handle burger menu
-    checkAuthStatus();
-    setupOutsideClickListener();
-    fetchRecommendations();
-});
 
 // Call the necessary functions on page load
 document.addEventListener('DOMContentLoaded', () => {

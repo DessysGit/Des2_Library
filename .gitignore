@@ -14,3 +14,7 @@ package.json
 *.json
 .env.example
 sessions.sqlite
+library.db
+sessions.sqlite
+.vscode/settings.json
+.env.example
