@@ -18,3 +18,7 @@ library.db
 sessions.sqlite
 .vscode/settings.json
 .env.example
+*.example
+/.vscode
+library.db
+sessions.sqlite
