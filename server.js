@@ -19,6 +19,7 @@ const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch
 const { spawn } = require('child_process');
 const SQLiteStore = require('connect-sqlite3')(session);
 //const { google } = require('googleapis');
+const url = require('url');
 require('dotenv').config();
 
 //console.log("Loaded GDRIVE_KEY:", process.env.GDRIVE_KEY ? "OK" : "Missing");
@@ -225,6 +226,9 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
+// Helper to check if running in production (on Render, etc.)
+const isCloudProduction = process.env.NODE_ENV === 'production' || process.env.FORCE_CLOUDINARY === 'true';
+
 // Load Google Drive credentials from environment variable
 //const auth = new google.auth.GoogleAuth({
 //  credentials: JSON.parse(process.env.GDRIVE_KEY),
@@ -261,9 +265,11 @@ app.use((req, res, next) => {
 app.post('/upload-profile-picture', isAuthenticated, upload.single('profilePicture'), (req, res) => {
   const userId = req.user.id;
 
-  if (process.env.CLOUDINARY_CLOUD_NAME) {
-    const fileBuffer = req.file.buffer;
+  // Always use Cloudinary in production
+  const useCloudinary = isCloudProduction;
 
+  if (useCloudinary) {
+    const fileBuffer = req.file.buffer;
     const stream = cloudinary.uploader.upload_stream(
       { folder: 'profile-pictures', transformation: [{ width: 300, height: 300, crop: 'fill' }] },
       (error, result) => {
@@ -271,7 +277,6 @@ app.post('/upload-profile-picture', isAuthenticated, upload.single('profilePictu
           console.error("Cloudinary error:", error);
           return res.status(500).send("Failed to upload profile picture");
         }
-
         db.run('UPDATE users SET profilePicture = ? WHERE id = ?', [result.secure_url, userId], (err) => {
           if (err) return res.status(500).send(err.message);
           res.json({ profilePicture: result.secure_url });
@@ -279,7 +284,6 @@ app.post('/upload-profile-picture', isAuthenticated, upload.single('profilePictu
       }
     );
     stream.end(fileBuffer);
-
   } else {
     // Fallback: local /uploads
     const uploadDir = path.join(__dirname, 'uploads');
@@ -536,11 +540,8 @@ app.post('/addBook', isAdmin, upload.fields([{ name: 'cover' }, { name: 'bookFil
     let coverUrl = null;
     let pdfUrl = null;
 
-    // Check if Cloudinary is configured
-    const hasCloudinary =
-      process.env.CLOUDINARY_CLOUD_NAME &&
-      process.env.CLOUDINARY_API_KEY &&
-      process.env.CLOUDINARY_API_SECRET;
+    // Always use Cloudinary in production
+    const useCloudinary = isCloudProduction;
 
     // Save to DB
     const { title, author, description } = req.body;
@@ -559,7 +560,7 @@ app.post('/addBook', isAdmin, upload.fields([{ name: 'cover' }, { name: 'bookFil
       genres = '';
     }
 
-    if (hasCloudinary) {
+    if (useCloudinary) {
       // Upload cover image to Cloudinary
       if (req.files['cover']) {
         const coverBuffer = req.files['cover'][0].buffer;
@@ -1063,6 +1064,57 @@ app.post('/api/chat', async (req, res) => {
     console.error('Hugging Face API error:', error.message);
     res.status(500).json({ reply: 'Oops! Something went wrong with the AI.' });
   }
+});
+
+// Download endpoint for book files (streams from Cloudinary or local)
+app.get('/download/:bookId', async (req, res) => {
+  const bookId = req.params.bookId;
+  db.get('SELECT title, file FROM books WHERE id = ?', [bookId], (err, row) => {
+    if (err) {
+      console.error(`DB error for bookId ${bookId}:`, err);
+      return res.status(404).send('Book not found');
+    }
+    if (!row) {
+      console.warn(`No book found with id ${bookId}`);
+      return res.status(404).send('Book not found');
+    }
+    const fileUrl = row.file;
+    const title = row.title || 'book';
+
+    if (!fileUrl) {
+      console.warn(`Book id ${bookId} has no file URL`);
+      return res.status(404).send('No file found for this book');
+    }
+
+    // If Cloudinary URL, stream it
+    if (fileUrl.startsWith('http')) {
+      const parsed = url.parse(fileUrl);
+      const protocol = parsed.protocol === 'https:' ? https : http;
+      protocol.get(fileUrl, (fileRes) => {
+        if (fileRes.statusCode !== 200) {
+          console.warn(`Remote file not found for bookId ${bookId}: ${fileUrl} (status ${fileRes.statusCode})`);
+          return res.status(404).send('File not found on remote server');
+        }
+        // Try to get extension from URL or fallback to .pdf
+        let ext = (parsed.pathname && parsed.pathname.split('.').pop()) || 'pdf';
+        if (ext.length > 5) ext = 'pdf';
+        res.setHeader('Content-Disposition', `attachment; filename="${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.${ext}"`);
+        res.setHeader('Content-Type', fileRes.headers['content-type'] || 'application/pdf');
+        fileRes.pipe(res);
+      }).on('error', (e) => {
+        console.error(`Error streaming remote file for bookId ${bookId}:`, e);
+        res.status(500).send('Failed to download file');
+      });
+    } else {
+      // Local file
+      const filePath = path.join(__dirname, fileUrl);
+      if (!fs.existsSync(filePath)) {
+        console.warn(`Local file not found for bookId ${bookId}: ${filePath}`);
+        return res.status(404).send('File not found');
+      }
+      res.download(filePath, `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`);
+    }
+  });
 });
 
 // Start the server

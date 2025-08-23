@@ -234,7 +234,7 @@
       document.getElementById('book-details-genres').innerText = book.genres;
       document.getElementById('book-details-summary').innerText = book.summary || 'No summary provided.';
       document.getElementById('book-details-cover').src = coverUrl;
-      document.getElementById('book-details-download').href = fileUrl;
+      document.getElementById('book-details-download').href = `${API_BASE_URL}/download/${currentBookId}`;
       document.getElementById('book-details-average-rating').innerText = (book.averageRating || 0).toFixed(1);
 
       // Display like/dislike counts
@@ -434,15 +434,15 @@
         const card = document.createElement('div');
         card.classList.add('card', 'mb-3');
         card.innerHTML = `
-                    <div class="card-body d-flex align-items-start">
-                        <img src="${profilePic}" alt="Profile Picture" class="rounded-circle mr-3" style="width: 50px; height: 50px;">
-                        <div>
-                            <p class="mb-1">${'⭐'.repeat(review.rating || 0)}</p>
-                            <p class="card-text">${review.text}</p>
-                            <p class="text-muted small">- ${review.username}</p>
-                        </div>
-                    </div>
-                `;
+        <div class="card-body d-flex align-items-start">
+            <img src="${profilePic}" alt="Profile Picture" class="rounded-circle mr-3" style="width: 50px; height: 50px;">
+            <div>
+                <p class="mb-1">${'⭐'.repeat(review.rating || 0)}</p>
+                <p class="card-text">${review.text}</p>
+                <p class="text-muted small">- ${review.username}</p>
+            </div>
+        </div>
+    `;
         container.appendChild(card);
       });
     } catch (err) {
