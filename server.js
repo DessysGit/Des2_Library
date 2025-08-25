@@ -1,7 +1,6 @@
 const express = require('express');
-const bodyParser = require('body-parser');
 const cors = require('cors');
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
 const path = require('path');
 const passport = require('passport');
 const session = require('express-session');
@@ -9,7 +8,6 @@ const bcrypt = require('bcryptjs');
 const LocalStrategy = require('passport-local').Strategy;
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
-const streamifier = require('streamifier');
 const upload = multer({ storage: multer.memoryStorage() });
 const fs = require('fs');
 const axios = require('axios');
@@ -17,207 +15,157 @@ const { body, validationResult } = require('express-validator');
 const rateLimit = require('express-rate-limit');
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 const { spawn } = require('child_process');
-const SQLiteStore = require('connect-sqlite3')(session);
-//const { google } = require('googleapis');
+const app = express();
 const url = require('url');
 require('dotenv').config();
+const PORT = process.env.PORT || 3000;
 
-//console.log("Loaded GDRIVE_KEY:", process.env.GDRIVE_KEY ? "OK" : "Missing");
+console.log('DATABASE_URL:', process.env.DATABASE_URL);
+console.log('DATABASE_URL_LOCAL:', process.env.DATABASE_URL_LOCAL);
+console.log('NODE_ENV:', process.env.NODE_ENV);
 
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
-
-const app = express();
-app.set('trust proxy', 1); // Trust first proxy (required for rate-limit & session cookies on Render)
-app.disable('x-powered-by'); // Hide Express version info
-const PORT = 3000;
-
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use('/chatbot', express.static(path.join(__dirname, 'chatbot')));
-
-
-// Middleware setup
-app.use(express.urlencoded({ extended: true }));
 const isProduction = process.env.NODE_ENV === 'production';
-const allowedOrigin = isProduction
-    ? 'https://strong-paletas-464b32.netlify.app'
-    : 'http://localhost:3000';
 
-app.use(cors({
-    origin: allowedOrigin,
-    credentials: true
-}));
-app.use(bodyParser.json());
+// Use DATABASE_URL_LOCAL for local dev, DATABASE_URL for production
+const connectionString = isProduction
+  ? process.env.DATABASE_URL
+  : (process.env.DATABASE_URL_LOCAL || process.env.DATABASE_URL);
 
-// Ensure SESSION_SECRET is always set for express-session
-const sessionSecret = process.env.SESSION_SECRET || 'dev-secret-key'; // fallback for development
-
-// Initialize Passport and session
-app.use(session({
-    secret: sessionSecret,
-    resave: false,
-    saveUninitialized: false,
-    store: new SQLiteStore({ db: 'sessions.sqlite', dir: './' }),
-    cookie: {
-        secure: isProduction,
-        sameSite: isProduction ? 'none' : 'lax'
-    }
-}));
-app.use(passport.initialize());
-app.use(passport.session());
-
-// Set up SQLite database
-let db = new sqlite3.Database(path.join(__dirname, 'library.db'), (err) => {
-    if (err) {
-        console.error(err.message);
-    }
-    console.log('Connected to the SQLite database.');
+const pool = new Pool({
+  connectionString,
+  ssl: isProduction ? { rejectUnauthorized: false } : false
 });
 
-// Create Users table
-db.run(`CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE,
-    password TEXT,
-    role TEXT,
-    email TEXT,
-    profilePicture TEXT,
-    favoriteGenres TEXT,
-    favoriteAuthors TEXT,
-    favoriteBooks TEXT
-)`);
-
-// Create Books table
-db.run(`CREATE TABLE IF NOT EXISTS books (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT,
-    author TEXT,
-    description TEXT,
-    genres TEXT,
-    cover TEXT,
-    file TEXT
-)`);
-
-// Add likes and dislikes columns to the Books table if they don't exist
-db.run(`ALTER TABLE books ADD COLUMN likes INTEGER DEFAULT 0`, (err) => {
-    if (err && !err.message.includes('duplicate column name')) {
-        console.error('Error adding likes column:', err.message);
-    }
-});
-db.run(`ALTER TABLE books ADD COLUMN dislikes INTEGER DEFAULT 0`, (err) => {
-    if (err && !err.message.includes('duplicate column name')) {
-        console.error('Error adding dislikes column:', err.message);
-    }
-});
-
-// Add summary column to the Books table if it doesn't exist
-db.run(`ALTER TABLE books ADD COLUMN summary TEXT`, (err) => {
-    if (err && !err.message.includes('duplicate column name')) {
-        console.error('Error adding summary column:', err.message);
-    }
-});
-
-// Create Likes table to track user likes and dislikes
-db.run(`CREATE TABLE IF NOT EXISTS likes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    userId INTEGER,
-    bookId INTEGER,
-    action TEXT,
-    UNIQUE(userId, bookId)
-)`);
-
-// Create Reviews table if it doesn't exist
-db.run(`CREATE TABLE IF NOT EXISTS reviews (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    bookId INTEGER,
-    userId INTEGER,
-    username TEXT,
-    text TEXT,
-    rating INTEGER,
-    FOREIGN KEY(bookId) REFERENCES books(id),
-    FOREIGN KEY(userId) REFERENCES users(id)
-)`);
-
-// Seed admin user if not exists
-const seedAdmin = async () => {
-    db.get('SELECT COUNT(*) AS count FROM users WHERE username = ?', ['admin'], async (err, row) => {
-        if (err) {
-            console.error('Error checking admin existence:', err.message);
-        } else if (row.count === 0) {
-            const hashedPassword = await bcrypt.hash('adminpassword', 10);
-            db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', ['admin', hashedPassword, 'admin'], (err) => {
-                if (err) {
-                    console.log('Error creating admin:', err.message);
-                } else {
-                    console.log('Admin user seeded successfully.');
-                }
-            });
-        } else {
-            console.log('Admin user already exists.');
-        }
-    });
+// CORS middleware (before routes)
+const corsOptions = {
+  origin: [
+    'http://localhost:3000', // local frontend
+    'https://strong-paletas-464b32.netlify.app' // deployed frontend
+  ],
+  credentials: true // allow cookies/sessions
 };
-seedAdmin();
+app.use(cors(corsOptions));
+
+// Create tables (run once at startup)
+(async () => {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username TEXT UNIQUE,
+      password TEXT,
+      role TEXT,
+      email TEXT,
+      profilePicture TEXT,
+      favoriteGenres TEXT,
+      favoriteAuthors TEXT,
+      favoriteBooks TEXT
+    );
+    CREATE TABLE IF NOT EXISTS books (
+      id SERIAL PRIMARY KEY,
+      title TEXT,
+      author TEXT,
+      description TEXT,
+      genres TEXT,
+      cover TEXT,
+      file TEXT,
+      likes INTEGER DEFAULT 0,
+      dislikes INTEGER DEFAULT 0,
+      summary TEXT,
+      averageRating FLOAT
+    );
+    CREATE TABLE IF NOT EXISTS likes (
+      id SERIAL PRIMARY KEY,
+      userId INTEGER,
+      bookId INTEGER,
+      action TEXT,
+      UNIQUE(userId, bookId)
+    );
+    CREATE TABLE IF NOT EXISTS reviews (
+      id SERIAL PRIMARY KEY,
+      bookId INTEGER,
+      userId INTEGER,
+      username TEXT,
+      text TEXT,
+      rating INTEGER
+    );
+    -- Add other tables as needed
+  `);
+  // Seed admin user if not exists
+  const seedAdmin = async () => {
+    const result = await pool.query('SELECT COUNT(*) AS count FROM users WHERE username = $1', ['admin']);
+    const row = result.rows[0];
+    if (row.count === 0) {
+      const hashedPassword = await bcrypt.hash('adminpassword', 10);
+      await pool.query('INSERT INTO users (username, password, role) VALUES ($1, $2, $3)', ['admin', hashedPassword, 'admin']);
+      console.log('Admin user seeded successfully.');
+    } else {
+      console.log('Admin user already exists.');
+    }
+  };
+  seedAdmin();
+})();
 
 // Recalculate averageRating for all books
-const recalculateAverageRatings = () => {
-    db.all('SELECT id FROM books', [], (err, books) => {
-        if (err) {
-            console.error('Error fetching books for recalculating average ratings:', err.message);
-            return;
-        }
+const recalculateAverageRatings = async () => {
+    const booksResult = await pool.query('SELECT id FROM books');
+    const books = booksResult.rows;
 
-        books.forEach((book) => {
-            db.get(
-                'SELECT AVG(rating) AS averageRating FROM reviews WHERE bookId = ?',
-                [book.id],
-                (err, row) => {
-                    if (err) {
-                        console.error(`Error calculating average rating for book ID ${book.id}:`, err.message);
-                        return;
-                    }
-
-                    const averageRating = row?.averageRating || 0;
-                    db.run(
-                        'UPDATE books SET averageRating = ? WHERE id = ?',
-                        [averageRating, book.id],
-                        (err) => {
-                            if (err) {
-                                console.error(`Error updating average rating for book ID ${book.id}:`, err.message);
-                            }
-                        }
-                    );
-                }
-            );
-        });
-    });
+    for (const book of books) {
+        const row = await pool.query('SELECT AVG(rating) AS averageRating FROM reviews WHERE bookId = $1', [book.id]);
+        const averageRating = row.rows[0]?.averageRating || 0;
+        await pool.query('UPDATE books SET averageRating = $1 WHERE id = $2', [averageRating, book.id]);
+    }
 };
 
 // Call the function during server startup
 recalculateAverageRatings();
 
 // Configure Passport.js for authentication
-passport.use(new LocalStrategy((username, password, done) => {
-    db.get('SELECT * FROM users WHERE username = ?', [username], (err, user) => {
-        if (err) return done(err);
+passport.use(new LocalStrategy(async (username, password, done) => {
+    try {
+        const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+        const user = result.rows[0];
         if (!user || !bcrypt.compareSync(password, user.password)) return done(null, false, { message: 'Incorrect username or password.' });
         return done(null, user);
-    });
+    } catch (err) {
+        return done(err);
+    }
 }));
 
 passport.serializeUser((user, done) => {
     done(null, user.id);
 });
 
-passport.deserializeUser((id, done) => {
-    db.get('SELECT * FROM users WHERE id = ?', [id], (err, user) => {
-        if (err) return done(err);
+passport.deserializeUser(async (id, done) => {
+    try {
+        const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+        const user = result.rows[0];
         done(null, user);
-    });
+    } catch (err) {
+        done(err);
+    }
 });
 
 // Middleware to parse JSON
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+const PgSession = require('connect-pg-simple')(session);
+
+app.use(session({
+    store: new PgSession({ pool }),
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax'
+    }
+}));
+
+
+app.use(passport.initialize());
+app.use(passport.session());
 
 // Configure Cloudinary from .env
 cloudinary.config({
@@ -229,58 +177,28 @@ cloudinary.config({
 // Helper to check if running in production (on Render, etc.)
 const isCloudProduction = process.env.NODE_ENV === 'production' || process.env.FORCE_CLOUDINARY === 'true';
 
-// Load Google Drive credentials from environment variable
-//const auth = new google.auth.GoogleAuth({
-//  credentials: JSON.parse(process.env.GDRIVE_KEY),
-//  scopes: ['https://www.googleapis.com/auth/drive']
-//});
-
-//const drive = google.drive({ version: 'v3', auth });
-
-// my folder ID here
-//const DRIVE_FOLDER_ID = '1cRPrsmYSBgCw4KRrFQL4fwAibvQ9tO1U';
-
-
 // Authentication check middleware
 const isAuthenticated = (req, res, next) => {
     if (req.isAuthenticated()) return next();
     res.status(401).send('You must be logged in to perform this action.');
 };
 
-// Verify the user role is set correctly
-app.use((req, res, next) => {
-    if (req.isAuthenticated()) {
-        db.get('SELECT role FROM users WHERE id = ?', [req.user.id], (err, user) => {
-            if (user) {
-                req.user.role = user.role; // Ensure the role is set correctly
-            }
-            next();
-        });
-    } else {
-        next();
-    }
-});
-
 // Profile picture upload endpoint
-app.post('/upload-profile-picture', isAuthenticated, upload.single('profilePicture'), (req, res) => {
+app.post('/upload-profile-picture', isAuthenticated, upload.single('profilePicture'), async (req, res) => {
   const userId = req.user.id;
-
-  // Always use Cloudinary in production
   const useCloudinary = isCloudProduction;
 
   if (useCloudinary) {
     const fileBuffer = req.file.buffer;
     const stream = cloudinary.uploader.upload_stream(
       { folder: 'profile-pictures', transformation: [{ width: 300, height: 300, crop: 'fill' }] },
-      (error, result) => {
+      async (error, result) => {
         if (error) {
           console.error("Cloudinary error:", error);
           return res.status(500).send("Failed to upload profile picture");
         }
-        db.run('UPDATE users SET profilePicture = ? WHERE id = ?', [result.secure_url, userId], (err) => {
-          if (err) return res.status(500).send(err.message);
-          res.json({ profilePicture: result.secure_url });
-        });
+        await pool.query('UPDATE users SET profilePicture = $1 WHERE id = $2', [result.secure_url, userId]);
+        res.json({ profilePicture: result.secure_url });
       }
     );
     stream.end(fileBuffer);
@@ -293,48 +211,48 @@ app.post('/upload-profile-picture', isAuthenticated, upload.single('profilePictu
     fs.writeFileSync(filePath, req.file.buffer);
 
     const profilePictureUrl = `/uploads/${req.file.originalname}`;
-    db.run('UPDATE users SET profilePicture = ? WHERE id = ?', [profilePictureUrl, userId], (err) => {
-      if (err) return res.status(500).send(err.message);
-      res.json({ profilePicture: profilePictureUrl });
-    });
+    await pool.query('UPDATE users SET profilePicture = $1 WHERE id = $2', [profilePictureUrl, userId]);
+    res.json({ profilePicture: profilePictureUrl });
   }
 });
 
 // Endpoint to get user profile
-app.get('/profile', isAuthenticated, (req, res) => {
+app.get('/profile', isAuthenticated, async (req, res) => {
   const { id } = req.user;
-  db.get(
-    'SELECT username, email, role, profilePicture, favoriteGenres, favoriteAuthors, favoriteBooks FROM users WHERE id = ?',
-    [id],
-    (err, user) => {
-      if (err) return res.status(500).send(err.message);
-      res.json(user);
-    }
-  );
+  try {
+    const result = await pool.query(
+      'SELECT username, email, role, profilePicture, favoriteGenres, favoriteAuthors, favoriteBooks FROM users WHERE id = $1',
+      [id]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
 });
 
 
 // Endpoint to update user profile
-app.post('/updateProfile', isAuthenticated, (req, res) => {
+app.post('/updateProfile', isAuthenticated, async (req, res) => {
     const { id } = req.user;
     const { email, password, favoriteGenres, favoriteAuthors, favoriteBooks } = req.body;
 
-    let updateQuery = 'UPDATE users SET email = ?, favoriteGenres = ?, favoriteAuthors = ?, favoriteBooks = ?';
-    let params = [email, favoriteGenres, favoriteAuthors, favoriteBooks, id];
-
-    if (password) {
-        const hashedPassword = bcrypt.hashSync(password, 10);
-        updateQuery = 'UPDATE users SET email = ?, password = ?, favoriteGenres = ?, favoriteAuthors = ?, favoriteBooks = ?';
-        params = [email, hashedPassword, favoriteGenres, favoriteAuthors, favoriteBooks, id];
-    }
-
-    db.run(updateQuery + ' WHERE id = ?', params, function (err) {
-        if (err) {
-            res.status(500).send(err.message);
-            return;
+    try {
+        if (password) {
+            const hashedPassword = bcrypt.hashSync(password, 10);
+            await pool.query(
+                'UPDATE users SET email = $1, password = $2, favoriteGenres = $3, favoriteAuthors = $4, favoriteBooks = $5 WHERE id = $6',
+                [email, hashedPassword, favoriteGenres, favoriteAuthors, favoriteBooks, id]
+            );
+        } else {
+            await pool.query(
+                'UPDATE users SET email = $1, favoriteGenres = $2, favoriteAuthors = $3, favoriteBooks = $4 WHERE id = $5',
+                [email, favoriteGenres, favoriteAuthors, favoriteBooks, id]
+            );
         }
         res.send('Profile updated successfully.');
-    });
+    } catch (err) {
+        res.status(500).send(err.message);
+    }
 });
 
 // Path to the file where email addresses will be stored
@@ -361,7 +279,7 @@ app.post('/subscribe', isAuthenticated, (req, res) => {
 });
 
 // Endpoint to fetch books
-app.get('/books', (req, res) => {
+app.get('/books', async (req, res) => {
     const title = req.query.title || "";
     const author = req.query.author || "";
     const genre = req.query.genre || "";
@@ -370,73 +288,50 @@ app.get('/books', (req, res) => {
     const offset = (page - 1) * limit;
     const isAdmin = req.isAuthenticated() && req.user.role === 'admin';
 
-    let query = 'SELECT * FROM books WHERE title LIKE ? AND author LIKE ?';
+    let query = 'SELECT * FROM books WHERE title ILIKE $1 AND author ILIKE $2';
     let params = [`%${title}%`, `%${author}%`];
 
     if (genre) {
-        query += ' AND genres LIKE ?';
+        query += ' AND genres ILIKE $3';
         params.push(`%${genre}%`);
     }
-    query += ' LIMIT ? OFFSET ?';
+    query += ' ORDER BY title LIMIT $4 OFFSET $5';
     params.push(limit, offset);
 
-    db.all(query, params, (err, rows) => {
-        if (err) {
-            res.status(500).send('Failed to fetch books');
-        } else {
-            db.get('SELECT COUNT(*) AS total FROM books WHERE title LIKE ? AND author LIKE ?', [`%${title}%`, `%${author}%`], (err, count) => {
-                if (err) {
-                    res.status(500).send('Failed to fetch book count');
-                } else {
-                    const booksWithAdminFlag = rows.map(book => ({
-                        ...book,
-                        isAdmin: isAdmin
-                    }));
+    const result = await pool.query(query, params);
+    const rows = result.rows;
+    const countResult = await pool.query('SELECT COUNT(*) AS total FROM books WHERE title ILIKE $1 AND author ILIKE $2', [`%${title}%`, `%${author}%`]);
+    const count = countResult.rows[0].total;
+    const booksWithAdminFlag = rows.map(book => ({
+        ...book,
+        isAdmin: isAdmin
+    }));
 
-                    // Fetch total ratings for each book
-                    const bookIds = booksWithAdminFlag.map(book => book.id);
-                    const placeholders = bookIds.map(() => '?').join(',');
-                    db.all(
-                        `SELECT bookId, COUNT(*) AS totalRatings FROM reviews WHERE bookId IN (${placeholders}) GROUP BY bookId`,
-                        bookIds,
-                        (err, ratings) => {
-                            if (err) {
-                                console.error('Error fetching total ratings:', err.message);
-                                res.status(500).send('Failed to fetch total ratings');
-                            } else {
-                                const ratingsMap = Object.fromEntries(ratings.map(r => [r.bookId, r.totalRatings]));
-                                booksWithAdminFlag.forEach(book => {
-                                    book.totalRatings = ratingsMap[book.id] || 0;
-                                });
-                                res.json({ books: booksWithAdminFlag, total: count.total });
-                            }
-                        }
-                    );
-                }
-            });
-        }
+    // Fetch total ratings for each book
+    const bookIds = booksWithAdminFlag.map(book => book.id);
+    const placeholders = bookIds.map((_, i) => `($1, ${i + 2})`).join(',');
+    const ratingQuery = `SELECT bookId, COUNT(*) AS totalRatings FROM reviews WHERE bookId IN (${placeholders}) GROUP BY bookId`;
+    const ratingsResult = await pool.query(ratingQuery, bookIds);
+    const ratingsMap = Object.fromEntries(ratingsResult.rows.map(r => [r.bookid, r.totalratings]));
+    booksWithAdminFlag.forEach(book => {
+        book.totalRatings = ratingsMap[book.id] || 0;
     });
+    res.json({ books: booksWithAdminFlag, total: count });
 });
 
 // Endpoint to fetch book details by ID
-app.get('/books/:id', (req, res) => {
+app.get('/books/:id', async (req, res) => {
   const bookId = req.params.id;
-  db.get(
-    'SELECT id, title, author, genres, summary, description, cover, file, averageRating, likes, dislikes FROM books WHERE id = ?',
-    [bookId],
-    (err, row) => {
-      if (err) {
-        console.error('Error fetching book details:', err);
-        return res.status(500).send('Failed to fetch book details');
-      }
-      if (!row) {
-        return res.status(404).send('Book not found');
-      }
-
-      // Do not rewrite cover/file paths already full URLs from Cloudinary & Google Drive
-      res.json(row);
-    }
-  );
+  try {
+    const result = await pool.query(
+      'SELECT id, title, author, genres, summary, description, cover, file, averageRating, likes, dislikes FROM books WHERE id = $1',
+      [bookId]
+    );
+    if (result.rows.length === 0) return res.status(404).send('Book not found');
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).send('Failed to fetch book details');
+  }
 });
 
 
@@ -452,28 +347,16 @@ app.post('/register', [
     const { username, password } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Find the smallest available ID
-    db.get('SELECT MIN(id + 1) AS nextId FROM users WHERE (id + 1) NOT IN (SELECT id FROM users)', [], (err, row) => {
-        if (err) {
-            console.error('Error finding next available ID:', err);
-            return res.status(500).send('Failed to register user');
-        }
-
-        const nextId = row?.nextId || 1; // Default to 1 if no users exist
-
-        // Insert the new user with the calculated ID
-        db.run(
-            'INSERT INTO users (id, username, password, role) VALUES (?, ?, ?, "user")',
-            [nextId, username, hashedPassword],
-            (err) => {
-                if (err) {
-                    console.error('Error registering user:', err);
-                    return res.status(400).send(err.message);
-                }
-                res.send('User registered successfully.');
-            }
+    try {
+        await pool.query(
+            'INSERT INTO users (username, password, role) VALUES ($1, $2, $3)',
+            [username, hashedPassword, 'user']
         );
-    });
+        res.send('User registered successfully.');
+    } catch (err) {
+        console.error('Error registering user:', err);
+        res.status(400).send(err.message);
+    }
 });
 
 // Login route
@@ -603,17 +486,11 @@ app.post('/addBook', isAdmin, upload.fields([{ name: 'cover' }, { name: 'bookFil
       }
     }
 
-    db.run(
-      'INSERT INTO books (title, author, description, genres, cover, file) VALUES (?, ?, ?, ?, ?, ?)',
-      [title, author, description, genres, coverUrl, pdfUrl],
-      function (err) {
-        if (err) {
-          console.error("DB error adding book:", err);
-          return res.status(500).send("Database error: " + err.message);
-        }
-        res.status(200).send('Book added successfully');
-      }
+    await pool.query(
+      'INSERT INTO books (title, author, description, genres, cover, file) VALUES ($1, $2, $3, $4, $5, $6)',
+      [title, author, description, genres, coverUrl, pdfUrl]
     );
+    res.status(200).send('Book added successfully');
   } catch (error) {
     console.error("Error uploading book:", error);
     res.status(500).send("Failed to upload book: " + error.message);
@@ -623,262 +500,150 @@ app.post('/addBook', isAdmin, upload.fields([{ name: 'cover' }, { name: 'bookFil
 
 
 // Grant admin role (seeded admin only)
-app.post('/users/:id/grant-admin', isSeedAdmin, (req, res) => {
-    const { id } = req.params;
-    db.run('UPDATE users SET role = "admin" WHERE id = ?', id, function (err) {
-        if (err) {
-            res.status(400).send(err.message);
-            return;
-        }
-        res.send(`User with ID ${id} granted admin role.`);
-    });
+app.post('/users/:id/grant-admin', isSeedAdmin, async (req, res) => {
+  const { id } = req.params;
+  await pool.query('UPDATE users SET role = $1 WHERE id = $2', ['admin', id]);
+  res.send(`User with ID ${id} granted admin role.`);
 });
 
 // Revoke admin role (seeded admin only)
-app.post('/users/:id/revoke-admin', isSeedAdmin, (req, res) => {
-    const { id } = req.params;
-    db.run('UPDATE users SET role = "user" WHERE id = ? AND role = "admin"', id, function (err) {
-        if (err) {
-            res.status(400).send(err.message);
-            return;
-        }
-        res.send(`User with ID ${id} revoked admin role.`);
-    });
+app.post('/users/:id/revoke-admin', isSeedAdmin, async (req, res) => {
+  const { id } = req.params;
+  await pool.query('UPDATE users SET role = $1 WHERE id = $2 AND role = $3', ['user', id, 'admin']);
+  res.send(`User with ID ${id} revoked admin role.`);
 });
 
+
 // Edit book endpoint (admin only)
-app.put('/books/:id', isAdmin, (req, res) => {
+app.put('/books/:id', isAdmin, async (req, res) => {
     const bookId = req.params.id;
     const { title, author, genres, summary, description } = req.body;
-    db.run(
-        'UPDATE books SET title = ?, author = ?, genres = ?, summary = ?, description = ? WHERE id = ?',
-        [title, author, genres, summary, description, bookId],
-        function (err) {
-            if (err) {
-                console.error('Error editing book:', err);
-                res.status(500).send('Failed to edit book');
-            } else {
-                db.get('SELECT * FROM books WHERE id = ?', [bookId], (err, updatedBook) => {
-                    if (err) {
-                        console.error('Error fetching updated book:', err);
-                        res.status(500).send('Failed to fetch updated book');
-                    } else {
-                        res.json(updatedBook); // Return updated book details
-                    }
-                });
-            }
-        }
-    );
+    try {
+        await pool.query(
+            'UPDATE books SET title = $1, author = $2, genres = $3, summary = $4, description = $5 WHERE id = $6',
+            [title, author, genres, summary, description, bookId]
+        );
+        const updatedBook = await pool.query('SELECT * FROM books WHERE id = $1', [bookId]);
+        res.json(updatedBook.rows[0]);
+    } catch (err) {
+        console.error('Error editing book:', err);
+        res.status(500).send('Failed to edit book');
+    }
 });
 
 // Delete book endpoint (admin only)
-app.delete('/books/:id', isAdmin, (req, res) => {
+app.delete('/books/:id', isAdmin, async (req, res) => {
   const bookId = req.params.id;
 
-  db.get('SELECT cover, file FROM books WHERE id = ?', [bookId], async (err, row) => {
-    if (err) return res.status(500).send('Failed to fetch book details');
-    if (!row) return res.status(404).send('Book not found');
+  const row = await pool.query('SELECT cover, file FROM books WHERE id = $1', [bookId]);
+  if (row.rows.length === 0) return res.status(404).send('Book not found');
 
-    const { cover, file } = row;
+  const { cover, file } = row.rows[0];
 
-    try {
-      // Delete cover from Cloudinary
-      if (cover && cover.includes('cloudinary.com')) {
-        const publicId = cover.split('/').slice(-1)[0].split('.')[0];
-        await cloudinary.uploader.destroy(`book-covers/${publicId}`);
-      }
-
-      // Delete PDF from Cloudinary (resource_type: raw)
-      if (file && file.includes('cloudinary.com')) {
-        const publicId = file.split('/').slice(-1)[0].split('.')[0];
-        await cloudinary.uploader.destroy(`book-pdfs/${publicId}`, { resource_type: 'raw' });
-      }
-
-      // Delete DB record
-      db.run('DELETE FROM books WHERE id = ?', [bookId], (err) => {
-        if (err) return res.status(500).send('Failed to delete book');
-        res.send('Book deleted successfully');
-      });
-    } catch (e) {
-      console.error('Cloudinary delete error:', e.message);
-      res.status(500).send('Failed to delete book files');
+  try {
+    // Delete cover from Cloudinary
+    if (cover && cover.includes('cloudinary.com')) {
+      const publicId = cover.split('/').slice(-1)[0].split('.')[0];
+      await cloudinary.uploader.destroy(`book-covers/${publicId}`);
     }
-  });
+
+    // Delete PDF from Cloudinary (resource_type: raw)
+    if (file && file.includes('cloudinary.com')) {
+      const publicId = file.split('/').slice(-1)[0].split('.')[0];
+      await cloudinary.uploader.destroy(`book-pdfs/${publicId}`, { resource_type: 'raw' });
+    }
+
+    // Delete DB record
+    await pool.query('DELETE FROM books WHERE id = $1', [bookId]);
+    res.send('Book deleted successfully');
+  } catch (e) {
+    console.error('Cloudinary delete error:', e.message);
+    res.status(500).send('Failed to delete book files');
+  }
 });
 
 
 
 // Endpoint to handle like action
-app.post('/books/:id/like', isAuthenticated, (req, res) => {
+app.post('/books/:id/like', isAuthenticated, async (req, res) => {
     const bookId = req.params.id;
     const userId = req.user.id;
 
-    db.serialize(() => {
-        db.get('SELECT action FROM likes WHERE userId = ? AND bookId = ?', [userId, bookId], (err, row) => {
-            if (err) {
-                console.error('Error checking like status:', err);
-                return res.status(500).send('Failed to like book');
-            }
+    const row = await pool.query('SELECT action FROM likes WHERE userId = $1 AND bookId = $2', [userId, bookId]);
+    if (row.rows.length > 0 && row.rows[0].action === 'like') {
+        return res.status(400).send('You have already liked this book');
+    }
 
-            if (row && row.action === 'like') {
-                return res.status(400).send('You have already liked this book');
-            }
+    await pool.query('BEGIN');
 
-            db.run('BEGIN TRANSACTION', (err) => {
-                if (err) {
-                    console.error('Transaction begin error:', err);
-                    return res.status(500).send('Transaction error');
-                }
+    try {
+        // If previously disliked, remove dislike
+        if (row.rows.length > 0 && row.rows[0].action === 'dislike') {
+            await pool.query('UPDATE books SET dislikes = MAX(dislikes - 1, 0) WHERE id = $1', [bookId]);
+        }
 
-                const updateDislikes = row && row.action === 'dislike'
-                    ? 'UPDATE books SET dislikes = MAX(dislikes - 1, 0) WHERE id = ?'
-                    : null;
+        await pool.query('UPDATE books SET likes = likes + 1 WHERE id = $1', [bookId]);
+        await pool.query('INSERT INTO likes (userId, bookId, action) VALUES ($1, $2, $3) ON CONFLICT (userId, bookId) DO UPDATE SET action = $3', [userId, bookId, 'like']);
 
-                const queries = [
-                    updateDislikes && [updateDislikes, [bookId]],
-                    ['UPDATE books SET likes = likes + 1 WHERE id = ?', [bookId]],
-                    ['INSERT OR REPLACE INTO likes (userId, bookId, action) VALUES (?, ?, ?)', [userId, bookId, 'like']]
-                ].filter(Boolean);
-
-                let completed = 0;
-
-                queries.forEach(([query, params]) => {
-                    db.run(query, params, (err) => {
-                        if (err) {
-                            console.error('Error executing query:', query, err);
-                            return db.run('ROLLBACK', () => res.status(500).send('Failed to like book'));
-                        }
-
-                        completed++;
-                        if (completed === queries.length) {
-                            db.run('COMMIT', (err) => {
-                                if (err) {
-                                    console.error('Commit failed:', err);
-                                    return res.status(500).send('Commit error');
-                                }
-
-                                db.get('SELECT likes, dislikes FROM books WHERE id = ?', [bookId], (err, row) => {
-                                    if (err) {
-                                        console.error('Error fetching book data:', err);
-                                        return res.status(500).send('Error fetching book data');
-                                    }
-                                    res.json(row);
-                                });
-                            });
-                        }
-                    });
-                });
-            });
-        });
-    });
+        await pool.query('COMMIT');
+        const bookResult = await pool.query('SELECT likes, dislikes FROM books WHERE id = $1', [bookId]);
+        res.json(bookResult.rows[0]);
+    } catch (e) {
+        await pool.query('ROLLBACK');
+        console.error('Error handling like action:', e);
+        res.status(500).send('Failed to like book');
+    }
 });
 
 // Endpoint to handle dislike action
-app.post('/books/:id/dislike', isAuthenticated, (req, res) => {
+app.post('/books/:id/dislike', isAuthenticated, async (req, res) => {
     const bookId = req.params.id;
     const userId = req.user.id;
 
-    db.serialize(() => {
-        db.get('SELECT action FROM likes WHERE userId = ? AND bookId = ?', [userId, bookId], (err, row) => {
-            if (err) {
-                console.error('Error checking dislike status:', err);
-                return res.status(500).send('Failed to dislike book');
-            }
+    const row = await pool.query('SELECT action FROM likes WHERE userId = $1 AND bookId = $2', [userId, bookId]);
+    if (row.rows.length > 0 && row.rows[0].action === 'dislike') {
+        return res.status(400).send('You have already disliked this book');
+    }
 
-            if (row && row.action === 'dislike') {
-                return res.status(400).send('You have already disliked this book');
-            }
+    await pool.query('BEGIN');
 
-            db.run('BEGIN TRANSACTION', (err) => {
-                if (err) {
-                    console.error('Transaction begin error:', err);
-                    return res.status(500).send('Transaction error');
-                }
+    try {
+        // If previously liked, remove like
+        if (row.rows.length > 0 && row.rows[0].action === 'like') {
+            await pool.query('UPDATE books SET likes = MAX(likes - 1, 0) WHERE id = $1', [bookId]);
+        }
 
-                const updateLikes = row && row.action === 'like'
-                    ? 'UPDATE books SET likes = MAX(likes - 1, 0) WHERE id = ?'
-                    : null;
+        await pool.query('UPDATE books SET dislikes = dislikes + 1 WHERE id = $1', [bookId]);
+        await pool.query('INSERT INTO likes (userId, bookId, action) VALUES ($1, $2, $3) ON CONFLICT (userId, bookId) DO UPDATE SET action = $3', [userId, bookId, 'dislike']);
 
-                const queries = [
-                    updateLikes && [updateLikes, [bookId]],
-                    ['UPDATE books SET dislikes = dislikes + 1 WHERE id = ?', [bookId]],
-                    ['INSERT OR REPLACE INTO likes (userId, bookId, action) VALUES (?, ?, ?)', [userId, bookId, 'dislike']]
-                ].filter(Boolean);
-
-                let completed = 0;
-
-                queries.forEach(([query, params]) => {
-                    db.run(query, params, (err) => {
-                        if (err) {
-                            console.error('Error executing query:', query, err);
-                            return db.run('ROLLBACK', () => res.status(500).send('Failed to dislike book'));
-                        }
-
-                        completed++;
-                        if (completed === queries.length) {
-                            db.run('COMMIT', (err) => {
-                                if (err) {
-                                    console.error('Commit failed:', err);
-                                    return res.status(500).send('Commit error');
-                                }
-
-                                db.get('SELECT likes, dislikes FROM books WHERE id = ?', [bookId], (err, row) => {
-                                    if (err) {
-                                        console.error('Error fetching book data:', err);
-                                        return res.status(500).send('Error fetching book data');
-                                    }
-                                    res.json(row);
-                                });
-                            });
-                        }
-                    });
-                });
-            });
-        });
-    });
+        await pool.query('COMMIT');
+        const bookResult = await pool.query('SELECT likes, dislikes FROM books WHERE id = $1', [bookId]);
+        res.json(bookResult.rows[0]);
+    } catch (e) {
+        await pool.query('ROLLBACK');
+        console.error('Error handling dislike action:', e);
+        res.status(500).send('Failed to dislike book');
+    }
 });
 
 // Search books
-app.get('/books/search', (req, res) => {
+app.get('/books/search', async (req, res) => {
     const { query } = req.query;
-    db.all('SELECT * FROM books WHERE title LIKE ? OR author LIKE ?', [`%${query}%`, `%${query}%`], (err, rows) => {
-        if (err) {
-            res.status(400).send(err.message);
-            return;
-        }
-        res.json(rows);
-    });
+    const result = await pool.query('SELECT * FROM books WHERE title ILIKE $1 OR author ILIKE $1', [`%${query}%`]);
+    res.json(result.rows);
 });
 
 // Get all users (admin only)
-app.get('/users', isAdmin, (req, res) => {
-    db.all('SELECT * FROM users', [], (err, rows) => {
-        if (err) {
-            res.status(400).send(err.message);
-            return;
-        }
-        res.json(rows);
-    });
+app.get('/users', isAdmin, async (req, res) => {
+    const result = await pool.query('SELECT * FROM users');
+    res.json(result.rows);
 });
 
 // Delete a specific user (admin only)
-app.delete('/users/:id', isAdmin, (req, res) => {
+app.delete('/users/:id', isAdmin, async (req, res) => {
     const { id } = req.params;
-    db.run('DELETE FROM users WHERE id = ? AND role != "admin"', id, function (err) {
-        if (err) {
-            res.status(400).send(err.message);
-            return;
-        }
-
-        // Reset the auto-increment counter for the users table
-        db.run('DELETE FROM sqlite_sequence WHERE name = "users"', (err) => {
-            if (err) {
-                console.error('Error resetting users auto-increment counter:', err);
-            }
-        });
-
-        res.send('User deleted successfully.');
-    });
+    await pool.query('DELETE FROM users WHERE id = $1 AND role != $2', [id, 'admin']);
+    res.send('User deleted successfully.');
 });
 
 // Endpoint for recommended books
@@ -949,31 +714,25 @@ app.get("/recommendations", isAuthenticated, async (req, res) => {
 });
 
 // Endpoint to fetch reviews for a book
-app.get('/books/:id/reviews', (req, res) => {
+app.get('/books/:id/reviews', async (req, res) => {
     const bookId = req.params.id;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
 
-    db.all(
+    const result = await pool.query(
         `SELECT reviews.username, reviews.text, reviews.rating, users.profilePicture 
          FROM reviews 
          JOIN users ON reviews.userId = users.id 
-         WHERE reviews.bookId = ? 
-         LIMIT ? OFFSET ?`,
-        [bookId, limit, offset],
-        (err, rows) => {
-            if (err) {
-                console.error('Error fetching reviews:', err);
-                return res.status(500).send('Failed to fetch reviews');
-            }
-            res.json(rows);
-        }
+         WHERE reviews.bookId = $1 
+         LIMIT $2 OFFSET $3`,
+        [bookId, limit, offset]
     );
+    res.json(result.rows);
 });
 
 // Endpoint to submit a review for a book
-app.post('/books/:id/reviews', isAuthenticated, (req, res) => {
+app.post('/books/:id/reviews', isAuthenticated, async (req, res) => {
     const { text, rating } = req.body;
     const bookId = req.params.id;
     const userId = req.user.id;
@@ -983,46 +742,27 @@ app.post('/books/:id/reviews', isAuthenticated, (req, res) => {
         return res.status(400).send('Invalid review data');
     }
 
-    db.run(
-        'INSERT INTO reviews (bookId, userId, username, text, rating) VALUES (?, ?, ?, ?, ?)',
-        [bookId, userId, username, text, rating],
-        function (err) {
-            if (err) {
-                console.error('Error adding review:', err);
-                return res.status(500).send('Failed to add review');
-            }
-
-            // Update the average rating for the book
-            db.get(
-                'SELECT AVG(rating) AS averageRating FROM reviews WHERE bookId = ?',
-                [bookId],
-                (err, row) => {
-                    if (err) {
-                        console.error('Error calculating average rating:', err);
-                        return res.status(500).send('Failed to update average rating');
-                    }
-
-                    const averageRating = row?.averageRating || 0;
-                    db.run(
-                        'UPDATE books SET averageRating = ? WHERE id = ?',
-                        [averageRating, bookId],
-                        (err) => {
-                            if (err) {
-                                console.error('Error updating average rating:', err);
-                                return res.status(500).send('Failed to update average rating');
-                            }
-                            res.status(201).send({ message: 'Review added successfully', averageRating });
-                        }
-                    );
-                }
-            );
-        }
+    await pool.query(
+        'INSERT INTO reviews (bookId, userId, username, text, rating) VALUES ($1, $2, $3, $4, $5)',
+        [bookId, userId, username, text, rating]
     );
+
+    // Update the average rating for the book
+    const row = await pool.query('SELECT AVG(rating) AS averageRating FROM reviews WHERE bookId = $1', [bookId]);
+    const averageRating = row.rows[0]?.averageRating || 0;
+    await pool.query('UPDATE books SET averageRating = $1 WHERE id = $2', [averageRating, bookId]);
+    res.status(201).send({ message: 'Review added successfully', averageRating });
 });
 
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(uploadDir));
+// Local uploads folder (only for development)
+if (process.env.NODE_ENV !== 'production') {
+  const path = require('path');
+  const uploadDir = path.join(__dirname, 'uploads');
+  app.use('/uploads', express.static(uploadDir));
+}
+
 
 // Add centralized error handling middleware
 app.use((err, req, res, next) => {
@@ -1069,52 +809,43 @@ app.post('/api/chat', async (req, res) => {
 // Download endpoint for book files (streams from Cloudinary or local)
 app.get('/download/:bookId', async (req, res) => {
   const bookId = req.params.bookId;
-  db.get('SELECT title, file FROM books WHERE id = ?', [bookId], (err, row) => {
-    if (err) {
-      console.error(`DB error for bookId ${bookId}:`, err);
-      return res.status(404).send('Book not found');
-    }
-    if (!row) {
-      console.warn(`No book found with id ${bookId}`);
-      return res.status(404).send('Book not found');
-    }
-    const fileUrl = row.file;
-    const title = row.title || 'book';
-
-    if (!fileUrl) {
-      console.warn(`Book id ${bookId} has no file URL`);
-      return res.status(404).send('No file found for this book');
-    }
-
-    // If Cloudinary URL, stream it
-    if (fileUrl.startsWith('http')) {
-      const parsed = url.parse(fileUrl);
-      const protocol = parsed.protocol === 'https:' ? https : http;
-      protocol.get(fileUrl, (fileRes) => {
-        if (fileRes.statusCode !== 200) {
-          console.warn(`Remote file not found for bookId ${bookId}: ${fileUrl} (status ${fileRes.statusCode})`);
-          return res.status(404).send('File not found on remote server');
-        }
-        // Try to get extension from URL or fallback to .pdf
-        let ext = (parsed.pathname && parsed.pathname.split('.').pop()) || 'pdf';
-        if (ext.length > 5) ext = 'pdf';
-        res.setHeader('Content-Disposition', `attachment; filename="${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.${ext}"`);
-        res.setHeader('Content-Type', fileRes.headers['content-type'] || 'application/pdf');
-        fileRes.pipe(res);
-      }).on('error', (e) => {
-        console.error(`Error streaming remote file for bookId ${bookId}:`, e);
-        res.status(500).send('Failed to download file');
-      });
-    } else {
-      // Local file
-      const filePath = path.join(__dirname, fileUrl);
-      if (!fs.existsSync(filePath)) {
-        console.warn(`Local file not found for bookId ${bookId}: ${filePath}`);
-        return res.status(404).send('File not found');
+  try {
+      const result = await pool.query('SELECT title, file FROM books WHERE id = $1', [bookId]);
+      if (result.rows.length === 0) {
+          return res.status(404).send('Book not found');
       }
-      res.download(filePath, `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`);
+      const { title, file: fileUrl } = result.rows[0];
+      // If Cloudinary URL, stream it
+      if (fileUrl.startsWith('http')) {
+        const parsed = url.parse(fileUrl);
+        const protocol = parsed.protocol === 'https:' ? https : http;
+        protocol.get(fileUrl, (fileRes) => {
+          if (fileRes.statusCode !== 200) {
+            console.warn(`Remote file not found for bookId ${bookId}: ${fileUrl} (status ${fileRes.statusCode})`);
+            return res.status(404).send('File not found on remote server');
+          }
+          // Try to get extension from URL or fallback to .pdf
+          let ext = (parsed.pathname && parsed.pathname.split('.').pop()) || 'pdf';
+          if (ext.length > 5) ext = 'pdf';
+          res.setHeader('Content-Disposition', `attachment; filename="${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.${ext}"`);
+          res.setHeader('Content-Type', fileRes.headers['content-type'] || 'application/pdf');
+          fileRes.pipe(res);
+        }).on('error', (e) => {
+          console.error(`Error streaming remote file for bookId ${bookId}:`, e);
+          res.status(500).send('Failed to download file');
+        });
+      } else {
+        // Local file
+        const filePath = path.join(__dirname, fileUrl);
+        if (!fs.existsSync(filePath)) {
+          console.warn(`Local file not found for bookId ${bookId}: ${filePath}`);
+          return res.status(404).send('File not found');
+        }
+        res.download(filePath, `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`);
+      }
+    } catch (err) {
+      res.status(500).send('Failed to fetch book');
     }
-  });
 });
 
 // Start the server
