@@ -22,3 +22,7 @@ sessions.sqlite
 /.vscode
 library.db
 sessions.sqlite
+*.sql
+*.example
+*.db
+*.example
