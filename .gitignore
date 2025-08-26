@@ -26,3 +26,7 @@ sessions.sqlite
 *.example
 *.db
 *.example
+*.example
+*.db
+*.example
+*.db
