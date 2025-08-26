@@ -20,37 +20,37 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-console.log('DATABASE_URL:', process.env.DATABASE_URL);
-console.log('DATABASE_URL_LOCAL:', process.env.DATABASE_URL_LOCAL);
-console.log('NODE_ENV:', process.env.NODE_ENV);
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://strong-paletas-464b32.netlify.app'
+];
 
-const isProduction = process.env.NODE_ENV === 'production';
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true
+}));
 
-//Trust proxy (must come before rate limiting & sessions)
+// Trust proxy (must come before rate limiting & sessions)
 app.set('trust proxy', 1);
-
-//CORS middleware (before routes)
-const corsOptions = {
-  origin: [
-    'http://localhost:3000', // local frontend
-    'https://strong-paletas-464b32.netlify.app' // deployed frontend
-  ],
-  credentials: true // allow cookies/sessions
-};
-app.use(cors(corsOptions));
 
 // JSON & URL parsing
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Database connection
-const connectionString = isProduction
+const connectionString = process.env.NODE_ENV === 'production'
   ? process.env.DATABASE_URL
   : (process.env.DATABASE_URL_LOCAL || process.env.DATABASE_URL);
 
 const pool = new Pool({
   connectionString,
-  ssl: isProduction ? { rejectUnauthorized: false } : false
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 // Create tables & seed admin (your block stays here)
@@ -175,8 +175,8 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: isProduction,
-    sameSite: isProduction ? 'none' : 'lax'
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
   }
 }));
 
@@ -306,32 +306,51 @@ app.get('/books', async (req, res) => {
     const isAdmin = req.isAuthenticated() && req.user.role === 'admin';
 
     let query = 'SELECT * FROM books WHERE title ILIKE $1 AND author ILIKE $2';
-    let params = [`%${title}%`, `%${author}%`];
+let params = [`%${title}%`, `%${author}%`];
 
-    if (genre) {
-        query += ' AND genres ILIKE $3';
-        params.push(`%${genre}%`);
-    }
-    query += ' ORDER BY title LIMIT $4 OFFSET $5';
-    params.push(limit, offset);
+// If genre filter exists, add it and use the next available param number
+if (genre) {
+  params.push(`%${genre}%`);
+  query += ` AND genres ILIKE $${params.length}`;
+}
 
-    const result = await pool.query(query, params);
-    const rows = result.rows;
-    const countResult = await pool.query('SELECT COUNT(*) AS total FROM books WHERE title ILIKE $1 AND author ILIKE $2', [`%${title}%`, `%${author}%`]);
-    const count = countResult.rows[0].total;
-    const booksWithAdminFlag = rows.map(book => ({
-        ...book,
-        isAdmin: isAdmin
-    }));
+// Add LIMIT and OFFSET with correct numbering
+params.push(limit);
+query += ` ORDER BY title LIMIT $${params.length}`;
+params.push(offset);
+query += ` OFFSET $${params.length}`;
+
+const result = await pool.query(query, params);
+const rows = result.rows;
+
+// Count query should also handle genre for consistent pagination
+let countQuery = 'SELECT COUNT(*) AS total FROM books WHERE title ILIKE $1 AND author ILIKE $2';
+let countParams = [`%${title}%`, `%${author}%`];
+if (genre) {
+  countParams.push(`%${genre}%`);
+  countQuery += ` AND genres ILIKE $${countParams.length}`;
+}
+
+const countResult = await pool.query(countQuery, countParams);
+const count = countResult.rows[0].total;
+
+const booksWithAdminFlag = rows.map(book => ({
+  ...book,
+  isAdmin: isAdmin
+}));
+
 
     // Fetch total ratings for each book
     const bookIds = booksWithAdminFlag.map(book => book.id);
-    const placeholders = bookIds.map((_, i) => `($1, ${i + 2})`).join(',');
-    const ratingQuery = `SELECT bookId, COUNT(*) AS totalRatings FROM reviews WHERE bookId IN (${placeholders}) GROUP BY bookId`;
-    const ratingsResult = await pool.query(ratingQuery, bookIds);
-    const ratingsMap = Object.fromEntries(ratingsResult.rows.map(r => [r.bookid, r.totalratings]));
+    let ratingsMap = {};
+    if (bookIds.length > 0) {
+      const inPlaceholders = bookIds.map((_, i) => `$${i + 1}`).join(', ');
+      const ratingQuery = `SELECT bookId, COUNT(*) AS totalRatings FROM reviews WHERE bookId IN (${inPlaceholders}) GROUP BY bookId`;
+      const ratingsResult = await pool.query(ratingQuery, bookIds);
+      ratingsMap = Object.fromEntries(ratingsResult.rows.map(r => [r.bookid, r.totalratings]));
+    }
     booksWithAdminFlag.forEach(book => {
-        book.totalRatings = ratingsMap[book.id] || 0;
+      book.totalRatings = ratingsMap[book.id] || 0;
     });
     res.json({ books: booksWithAdminFlag, total: count });
 });
@@ -703,7 +722,7 @@ app.get("/recommendations", isAuthenticated, async (req, res) => {
             console.error('recommend.py error:', data.toString());
         });
 
-        python.on('close', (code) => {
+        python.on('close', async (code) => {
             try {
                 // Expect recommend.py to print a JSON string
                 const result = JSON.parse(output);
@@ -713,18 +732,18 @@ app.get("/recommendations", isAuthenticated, async (req, res) => {
                 res.json({ recommendations: filteredRecommendations });
             } catch (err) {
                 console.error('Error parsing recommend.py output:', err);
-                // Fallback: Return up to 4 sample recommendations excluding the current book
-                db.all(
-                    'SELECT id, title, description, cover FROM books WHERE id != ? LIMIT 4',
-                    [currentBookId],
-                    (err, rows) => {
-                        if (err) {
-                            console.error("Error fetching fallback recommendations:", err.message);
-                            return res.status(500).json({ error: "Error fetching recommendations" });
-                        }
-                        res.json({ recommendations: rows });
-                    }
-                );
+
+                // Fallback: query Postgres directly
+                try {
+                    const fallback = await pool.query(
+                        'SELECT id, title, description, cover FROM books WHERE id != $1 LIMIT 4',
+                        [currentBookId]
+                    );
+                    res.json({ recommendations: fallback.rows });
+                } catch (dbErr) {
+                    console.error("Error fetching fallback recommendations:", dbErr.message);
+                    res.status(500).json({ error: "Error fetching recommendations" });
+                }
             }
         });
     }
