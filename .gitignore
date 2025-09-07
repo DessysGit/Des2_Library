@@ -30,3 +30,4 @@ sessions.sqlite
 *.db
 *.example
 *.db
+.env

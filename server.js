@@ -16,6 +16,10 @@ const rateLimit = require('express-rate-limit');
 const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 const { spawn } = require('child_process');
 require('dotenv').config();
+const http = require('http');
+const https = require('https');
+const url = require('url');
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -44,78 +48,106 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Database connection
-const connectionString = process.env.NODE_ENV === 'production'
-  ? process.env.DATABASE_URL
-  : (process.env.DATABASE_URL_LOCAL || process.env.DATABASE_URL);
+const connectionString = process.env.DATABASE_URL;
 
 const pool = new Pool({
-  connectionString,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+  max: 5,                   // keep it low for Supabase free tier
+  idleTimeoutMillis: 30000, // close idle connections after 30s
+  connectionTimeoutMillis: 5000 // fail fast if DB can’t connect
 });
 
-// Create tables & seed admin (your block stays here)
-(async () => {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      username TEXT UNIQUE,
-      password TEXT,
-      role TEXT,
-      email TEXT,
-      profilePicture TEXT,
-      favoriteGenres TEXT,
-      favoriteAuthors TEXT,
-      favoriteBooks TEXT
-    );
-    CREATE TABLE IF NOT EXISTS books (
-      id SERIAL PRIMARY KEY,
-      title TEXT,
-      author TEXT,
-      description TEXT,
-      genres TEXT,
-      cover TEXT,
-      file TEXT,
-      likes INTEGER DEFAULT 0,
-      dislikes INTEGER DEFAULT 0,
-      summary TEXT,
-      averageRating FLOAT
-    );
-    CREATE TABLE IF NOT EXISTS likes (
-      id SERIAL PRIMARY KEY,
-      userId INTEGER,
-      bookId INTEGER,
-      action TEXT,
-      UNIQUE(userId, bookId)
-    );
-    CREATE TABLE IF NOT EXISTS reviews (
-      id SERIAL PRIMARY KEY,
-      bookId INTEGER,
-      userId INTEGER,
-      username TEXT,
-      text TEXT,
-      rating INTEGER
-    );
-  `);
+pool.on("error", (err) => {
+  console.error("Unexpected DB error", err);
+});
 
-  // Seed admin user
-  const seedAdmin = async () => {
+
+// Create tables & seed admin
+async function ensureTables() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username TEXT UNIQUE,
+        password TEXT,
+        role TEXT,
+        email TEXT,
+        profilePicture TEXT,
+        favoriteGenres TEXT,
+        favoriteAuthors TEXT,
+        favoriteBooks TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS books (
+        id SERIAL PRIMARY KEY,
+        title TEXT,
+        author TEXT,
+        description TEXT,
+        genres TEXT,
+        cover TEXT,
+        file TEXT,
+        likes INTEGER DEFAULT 0,
+        dislikes INTEGER DEFAULT 0,
+        summary TEXT,
+        averageRating FLOAT
+      );
+
+      CREATE TABLE IF NOT EXISTS likes (
+        id SERIAL PRIMARY KEY,
+        userId INTEGER,
+        bookId INTEGER,
+        action TEXT,
+        UNIQUE(userId, bookId)
+      );
+
+      CREATE TABLE IF NOT EXISTS reviews (
+        id SERIAL PRIMARY KEY,
+        bookId INTEGER,
+        userId INTEGER,
+        username TEXT,
+        text TEXT,
+        rating INTEGER
+      );
+    `);
+    console.log("✅ Tables ensured successfully.");
+  } catch (err) {
+    console.error("❌ Error ensuring tables:", err);
+  }
+}
+
+async function seedAdmin() {
+  try {
+    // Read admin username/password from environment variables
+    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'adminpassword';
+
     const result = await pool.query(
       'SELECT COUNT(*) AS count FROM users WHERE username = $1',
-      ['admin']
+      [adminUsername]
     );
+
     if (parseInt(result.rows[0].count, 10) === 0) {
-      const hashedPassword = await bcrypt.hash('adminpassword', 10);
+      const hashedPassword = await bcrypt.hash(adminPassword, 10);
       await pool.query(
         'INSERT INTO users (username, password, role) VALUES ($1, $2, $3)',
-        ['admin', hashedPassword, 'admin']
+        [adminUsername, hashedPassword, 'admin']
       );
-      console.log('Admin user seeded successfully.');
+      console.log('✅ Admin user seeded successfully.');
     } else {
-      console.log('Admin user already exists.');
+      console.log('ℹ️ Admin user already exists.');
     }
-  };
-  seedAdmin();
+  } catch (err) {
+    console.error("❌ Error seeding admin user:", err);
+  }
+}
+
+// Run setup immediately at startup
+(async () => {
+  await ensureTables();
+  await seedAdmin();
 })();
+
 
 
 // Recalculate averageRating for all books
@@ -497,7 +529,7 @@ app.post('/addBook', isAdmin, upload.fields([{ name: 'cover' }, { name: 'bookFil
         const pdfBuffer = req.files['bookFile'][0].buffer;
         pdfUrl = await new Promise((resolve, reject) => {
           const stream = cloudinary.uploader.upload_stream(
-            { folder: 'book-pdfs', resource_type: 'raw' },
+            { folder: 'book-pdfs', resource_type: 'raw', use_filename: true, unique_filename: false },
             (error, result) => error ? reject(error) : resolve(result.secure_url)
           );
           stream.end(pdfBuffer);
