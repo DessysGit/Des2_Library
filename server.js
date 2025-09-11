@@ -251,13 +251,13 @@ app.post('/upload-profile-picture', isAuthenticated, upload.single('profilePictu
             return res.status(500).send("Failed to upload profile picture");
           }
 
-          // Save Cloudinary URL into DB
+          // Save Cloudinary URL into DB using PostgreSQL syntax
           await pool.query(
             'UPDATE users SET profilePicture = $1 WHERE id = $2',
             [result.secure_url, userId]
           );
 
-          // ✅ Update session object so Passport has the latest value
+          // Update session object so Passport has the latest value
           req.user.profilePicture = result.secure_url;
 
           res.json({ profilePicture: result.secure_url });
@@ -280,7 +280,7 @@ app.post('/upload-profile-picture', isAuthenticated, upload.single('profilePictu
         [profilePictureUrl, userId]
       );
 
-      // ✅ Update session object
+      // Update session object
       req.user.profilePicture = profilePictureUrl;
 
       res.json({ profilePicture: profilePictureUrl });
@@ -290,6 +290,7 @@ app.post('/upload-profile-picture', isAuthenticated, upload.single('profilePictu
     res.status(500).json({ error: "Upload failed" });
   }
 });
+
 
 
 // Endpoint to get user profile
@@ -480,9 +481,20 @@ app.post('/logout', (req, res, next) => {
 });
 
 // Current user route
-app.get('/current-user', (req, res) => {
+app.get('/current-user', async (req, res) => {
     if (req.isAuthenticated()) {
-        res.json(req.user);
+        try {
+            // Always fetch fresh user data from database instead of relying on session
+            const result = await pool.query(
+                'SELECT id, username, role, profilePicture FROM users WHERE id = $1',
+                [req.user.id]
+            );
+            const freshUser = result.rows[0];
+            res.json(freshUser);
+        } catch (err) {
+            console.error('Error fetching current user:', err);
+            res.json(req.user); // fallback to session data
+        }
     } else {
         res.status(401).send('Not authenticated');
     }
@@ -941,6 +953,11 @@ app.get('/download/:bookId', async (req, res) => {
     } catch (err) {
       res.status(500).send('Failed to fetch book');
     }
+});
+
+
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // Start the server

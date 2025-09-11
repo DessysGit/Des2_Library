@@ -120,12 +120,13 @@ async function login() {
         credentials: 'include',
         body: JSON.stringify({ username, password })
     });
+    
     if (response.ok) {
         const user = await response.json();
-
-         // Store authentication state
-        setAuthState(true, user);
-
+        
+        // Set user role and show appropriate UI elements
+        userRole = user.role;
+        
         const hamburgerButton = document.getElementById('hamburger-button');
         const searchBooksSection = document.getElementById('search-books');
         const manageUsersLink = document.getElementById('manage-users-link');
@@ -135,10 +136,9 @@ async function login() {
         const newsletterSection = document.getElementById('newsletter-section');
         const mainContent = document.getElementById('main-content');
         const recommendationsSection = document.getElementById('recommendations-section');
-        const addBookForm = document.getElementById('add-book-form');
         const footer = document.getElementById('footer');
 
-        userRole = user.role; // Store user role
+        // Update UI visibility
         if (hamburgerButton) hamburgerButton.style.display = 'block';
         if (searchBooksSection) searchBooksSection.style.display = 'block';
         if (loginForm) loginForm.style.display = 'none';
@@ -157,27 +157,17 @@ async function login() {
 
         // Update sidebar with user info
         document.getElementById('burger-username').innerText = user.username;
-       if (user.profilePicture) {
-    document.getElementById('burger-profile-picture').src = user.profilePicture + '?timestamp=' + new Date().getTime();
-}
+        
+        // Always refresh profile picture from database after login
+        await refreshProfilePicture();
 
-
-        // Clear add-book fields
-        if (addBookForm) {
-            document.getElementById('title').value = "";
-            document.getElementById('author').value = "";
-            document.getElementById('description').value = "";
-            document.getElementById('genres').value = "";
-            document.getElementById('book-cover').value = "";
-            document.getElementById('book-file').value = "";
-        }
-
-        // Fetch fresh books and reset search/recommendations
-        fetchBooks(); // Fetch books after login
-        fetchRecommendations(); // Fetch recommendations after login
+        // Fetch fresh data
+        fetchBooks();
+        fetchRecommendations();
 
         const chatIcon = document.getElementById('chat-icon');
-        if (chatIcon) chatIcon.style.display = 'block'; // Show chatbot icon after login
+        if (chatIcon) chatIcon.style.display = 'block';
+        
     } else {
         const errorMessage = await response.text();
         alert('Failed to login: ' + errorMessage);
@@ -334,7 +324,7 @@ function toggleMenu() {
 }
 
 // Function to show specific sections
-function showSection(sectionId) {
+async function showSection(sectionId) {
     const sections = document.querySelectorAll('#register-form, #login-form, #search-books, #profile-section, #admin-section, #add-book-section, #recommendations-section, .newsletter-section');
     sections.forEach(section => {
         if (section) section.style.display = section.id === sectionId ? 'block' : 'none';
@@ -389,6 +379,13 @@ function showSection(sectionId) {
     // Fetch recommendations when the "Recommendations" section is shown
     if (sectionId === 'recommendations-section') {
         fetchRecommendations();
+    }
+
+    // Refresh profile picture when showing profile section
+    if (sectionId === 'profile-section') {
+        fetchProfile();
+        await refreshProfilePicture();
+        disableProfileEditing();
     }
 
     // Hide Add Book section if user is not admin
@@ -852,23 +849,27 @@ async function uploadProfilePicture() {
     if (fileInput.files.length > 0) {
         const formData = new FormData();
         formData.append('profilePicture', fileInput.files[0]);
+        
         try {
             const response = await fetch(`${API_BASE_URL}/upload-profile-picture`, {
                 method: 'POST',
                 body: formData,
-                credentials: 'include' 
+                credentials: 'include'
             });
+            
             if (response.ok) {
                 const data = await response.json();
                 let profilePictureUrl = data.profilePicture;
                 
-                // Don't modify Cloudinary URLs, only local ones
-                if (profilePictureUrl && profilePictureUrl.startsWith('/uploads/') && API_BASE_URL) {
+                // Only modify local URLs, not Cloudinary URLs
+                if (profilePictureUrl && profilePictureUrl.startsWith('/uploads/')) {
                     profilePictureUrl = API_BASE_URL + profilePictureUrl;
                 }
                 
-                // Update all profile picture elements immediately
-                updateProfilePictureElements(profilePictureUrl);
+                // Add timestamp cache-busting
+                const timestamp = '?timestamp=' + new Date().getTime();
+                document.getElementById('profile-picture').src = profilePictureUrl + timestamp;
+                document.getElementById('burger-profile-picture').src = profilePictureUrl + timestamp;
                 
                 alert('Profile picture uploaded successfully.');
             } else {
@@ -884,23 +885,30 @@ async function uploadProfilePicture() {
     }
 }
 
-// Helper function to update profile picture elements
-function updateProfilePictureElements(profilePictureUrl) {
-    const profilePictureElement = document.getElementById('profile-picture');
-    const burgerProfilePictureElement = document.getElementById('burger-profile-picture');
-    
-    if (profilePictureElement) {
-        profilePictureElement.src = profilePictureUrl;
-    }
-    if (burgerProfilePictureElement) {
-        burgerProfilePictureElement.src = profilePictureUrl;
-    }
-}
-
 // Add event listener to profile picture input for automatic upload
 const profilePictureInput = document.getElementById('profile-picture-input');
 if (profilePictureInput) {
     profilePictureInput.addEventListener('change', uploadProfilePicture);
+}
+
+// function to refresh profile picture from database
+async function refreshProfilePicture() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/profile`, { credentials: 'include' });
+        if (response.ok) {
+            const user = await response.json();
+            if (user.profilePicture) {
+                const timestamp = '?timestamp=' + new Date().getTime();
+                const profilePic = document.getElementById('profile-picture');
+                const burgerProfilePic = document.getElementById('burger-profile-picture');
+                
+                if (profilePic) profilePic.src = user.profilePicture + timestamp;
+                if (burgerProfilePic) burgerProfilePic.src = user.profilePicture + timestamp;
+            }
+        }
+    } catch (error) {
+        console.error('Error refreshing profile picture:', error);
+    }
 }
 
 // Function to fetch user profile and display it
@@ -909,21 +917,22 @@ async function fetchProfile() {
         const response = await fetch(`${API_BASE_URL}/profile`, { credentials: 'include' });
         if (response.ok) {
             const user = await response.json();
+            
+            // Update form fields
             document.getElementById('profile-email').value = user.email || '';
             document.getElementById('profile-genres').value = user.favoriteGenres || '';
             document.getElementById('profile-authors').value = user.favoriteAuthors || '';
             document.getElementById('profile-books').value = user.favoriteBooks || '';
             
-            // Handle profile picture - don't rely on localStorage
+            // RESTORE: Handle profile picture with timestamp like the old working code
             if (user.profilePicture) {
                 let profilePictureUrl = user.profilePicture;
-                
-                // Only modify local URLs, not Cloudinary URLs
-                if (profilePictureUrl.startsWith('/uploads/') && API_BASE_URL) {
+                if (profilePictureUrl && profilePictureUrl.startsWith('/uploads/')) {
                     profilePictureUrl = API_BASE_URL + profilePictureUrl;
                 }
-                
-                updateProfilePictureElements(profilePictureUrl);
+                const timestamp = '?timestamp=' + new Date().getTime();
+                document.getElementById('profile-picture').src = profilePictureUrl + timestamp;
+                document.getElementById('burger-profile-picture').src = profilePictureUrl + timestamp;
             }
         } else {
             alert('Failed to fetch profile');
@@ -947,9 +956,9 @@ async function checkAuthStatus() {
         const response = await fetch(`${API_BASE_URL}/current-user`, { credentials: 'include' });
         if (response.ok) {
             const user = await response.json();
-            userRole = user.role; // Update the global userRole variable
+            userRole = user.role;
 
-            // Get all UI elements
+            // Show authenticated UI elements
             const loginForm = document.getElementById('login-form');
             const mainContent = document.getElementById('main-content');
             const newsletterSection = document.getElementById('newsletter-section');
@@ -963,9 +972,8 @@ async function checkAuthStatus() {
             const manageUsersLink = document.getElementById('manage-users-link');
             const addBookSection = document.getElementById('add-book-section');
             const burgerUsername = document.getElementById('burger-username');
-            const chatIcon = document.getElementById('chat-icon');
 
-            // Show authenticated user sections
+            // Update UI elements
             if (loginForm) loginForm.style.display = 'none';
             if (mainContent) mainContent.style.display = 'block';
             if (newsletterSection) newsletterSection.style.display = 'block';
@@ -973,26 +981,17 @@ async function checkAuthStatus() {
             if (hamburgerButton) hamburgerButton.style.display = 'block';
             if (searchBooksSection) searchBooksSection.style.display = 'block';
             if (footer) footer.style.display = 'block';
-            if (chatIcon) chatIcon.style.display = 'block';
 
             // Hide other sections by default
             if (addBookSection) addBookSection.style.display = 'none';
             if (profileSection) profileSection.style.display = 'none';
+            if (manageUsersLink) manageUsersLink.style.display = 'none';
 
             // Update sidebar with user info
             if (burgerUsername) burgerUsername.innerText = user.username;
-
-            // Handle profile picture from server data only - NO localStorage
-            if (user.profilePicture) {
-                let profilePictureUrl = user.profilePicture;
-                
-                // Only modify local URLs, not Cloudinary URLs
-                if (profilePictureUrl.startsWith('/uploads/') && API_BASE_URL) {
-                    profilePictureUrl = API_BASE_URL + profilePictureUrl;
-                }
-                
-                updateProfilePictureElements(profilePictureUrl);
-            }
+            
+            // Always refresh profile picture from database instead of relying on session
+            await refreshProfilePicture();
 
             // Handle admin-specific UI elements
             if (userRole === 'admin') {
@@ -1001,19 +1000,23 @@ async function checkAuthStatus() {
                 if (adminButton) adminButton.style.display = 'block';
             } else {
                 if (addBookLink) addBookLink.style.display = 'none';
-                if (manageUsersLink) manageUsersLink.style.display = 'none';
-                if (adminButton) adminButton.style.display = 'none';
             }
+
+            const chatIcon = document.getElementById('chat-icon');
+            if (chatIcon) chatIcon.style.display = 'block';
             
             return true;
         } else {
-            // User is not authenticated
             showLoginForm();
+            const chatIcon = document.getElementById('chat-icon');
+            if (chatIcon) chatIcon.style.display = 'none';
             return false;
         }
     } catch (error) {
         console.error('Error checking auth status:', error);
         showLoginForm();
+        const chatIcon = document.getElementById('chat-icon');
+        if (chatIcon) chatIcon.style.display = 'none';
         return false;
     }
 }
