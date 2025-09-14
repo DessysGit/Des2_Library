@@ -48,77 +48,122 @@ app.set('trust proxy', 1);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Database connection
-const connectionString = process.env.DATABASE_URL;
-
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-  max: 5,                   // keep it low for Supabase free tier
-  idleTimeoutMillis: 30000, // close idle connections after 30s
-  connectionTimeoutMillis: 5000 // fail fast if DB can’t connect
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  max: 3,                     // Reduce max connections to avoid overwhelming free tier
+  idleTimeoutMillis: 20000,   // Reduce idle timeout
+  connectionTimeoutMillis: 10000, // Increase connection timeout
+  acquireTimeoutMillis: 60000,    // Add acquire timeout
+  createTimeoutMillis: 30000,     // Add create timeout
+  destroyTimeoutMillis: 5000,     // Add destroy timeout
+  reapIntervalMillis: 1000,       // Add reap interval
+  createRetryIntervalMillis: 200, // Add retry interval
 });
 
 pool.on("error", (err) => {
   console.error("Unexpected DB error", err);
+  // Don't exit the process, just log the error
 });
+
+// Test the connection before using it
+async function testConnection() {
+  const maxRetries = 3;
+  let retries = 0;
+  
+  while (retries < maxRetries) {
+    try {
+      const client = await pool.connect();
+      console.log('✅ Database connected successfully');
+      client.release();
+      return true;
+    } catch (err) {
+      retries++;
+      console.error(`❌ Database connection attempt ${retries} failed:`, err.message);
+      if (retries === maxRetries) {
+        throw err;
+      }
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+  }
+}
 
 
 // Create tables & seed admin including email verification
 async function ensureTables() {
-    try {
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                username TEXT UNIQUE NOT NULL,
-                email TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL,
-                role TEXT NOT NULL DEFAULT 'user',
-                "profilePicture" TEXT DEFAULT '',
-                "favoriteGenres" TEXT DEFAULT '',
-                "favoriteAuthors" TEXT DEFAULT '',
-                "favoriteBooks" TEXT DEFAULT '',
-                "isEmailVerified" BOOLEAN DEFAULT FALSE,
-                "emailVerificationToken" TEXT,
-                "emailVerificationExpires" TIMESTAMP,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
+    const maxRetries = 3;
+    let retries = 0;
+    
+    while (retries < maxRetries) {
+        try {
+            const client = await pool.connect();
+            
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    username TEXT UNIQUE NOT NULL,
+                    email TEXT UNIQUE NOT NULL,
+                    password TEXT NOT NULL,
+                    role TEXT NOT NULL DEFAULT 'user',
+                    "profilePicture" TEXT DEFAULT '',
+                    "favoriteGenres" TEXT DEFAULT '',
+                    "favoriteAuthors" TEXT DEFAULT '',
+                    "favoriteBooks" TEXT DEFAULT '',
+                    "isEmailVerified" BOOLEAN DEFAULT FALSE,
+                    "emailVerificationToken" TEXT,
+                    "emailVerificationExpires" TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
 
-            CREATE TABLE IF NOT EXISTS books (
-                id SERIAL PRIMARY KEY,
-                title TEXT,
-                author TEXT,
-                description TEXT,
-                genres TEXT,
-                cover TEXT,
-                file TEXT,
-                likes INTEGER DEFAULT 0,
-                dislikes INTEGER DEFAULT 0,
-                summary TEXT,
-                "averageRating" FLOAT DEFAULT 0
-            );
+                CREATE TABLE IF NOT EXISTS books (
+                    id SERIAL PRIMARY KEY,
+                    title TEXT,
+                    author TEXT,
+                    description TEXT,
+                    genres TEXT,
+                    cover TEXT,
+                    file TEXT,
+                    likes INTEGER DEFAULT 0,
+                    dislikes INTEGER DEFAULT 0,
+                    summary TEXT,
+                    "averageRating" FLOAT DEFAULT 0
+                );
 
-            CREATE TABLE IF NOT EXISTS likes (
-                id SERIAL PRIMARY KEY,
-                "userId" INTEGER,
-                "bookId" INTEGER,
-                action TEXT,
-                UNIQUE("userId", "bookId")
-            );
+                CREATE TABLE IF NOT EXISTS likes (
+                    id SERIAL PRIMARY KEY,
+                    "userId" INTEGER,
+                    "bookId" INTEGER,
+                    action TEXT,
+                    UNIQUE("userId", "bookId")
+                );
 
-            CREATE TABLE IF NOT EXISTS reviews (
-                id SERIAL PRIMARY KEY,
-                "bookId" INTEGER,
-                "userId" INTEGER,
-                username TEXT,
-                text TEXT,
-                rating INTEGER
-            );
-        `);
-        
-        console.log("✅Tables ensured successfully.");
-    } catch (err) {
-        console.error("Error ensuring tables:", err);
+                CREATE TABLE IF NOT EXISTS reviews (
+                    id SERIAL PRIMARY KEY,
+                    "bookId" INTEGER,
+                    "userId" INTEGER,
+                    username TEXT,
+                    text TEXT,
+                    rating INTEGER
+                );
+            `);
+            
+            client.release();
+            console.log("✅ Tables ensured successfully.");
+            return;
+            
+        } catch (err) {
+            retries++;
+            console.error(`❌ Error ensuring tables (attempt ${retries}):`, err.message);
+            
+            if (retries === maxRetries) {
+                console.error("❌ Failed to ensure tables after maximum retries");
+                throw err;
+            }
+            
+            // Wait before retrying
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        }
     }
 }
 
@@ -181,11 +226,23 @@ async function seedAdmin() {
 
 // Run setup immediately at startup
 (async () => {
-  await ensureTables();
-  await seedAdmin();
+    try {
+        console.log('🔄 Testing database connection...');
+        await testConnection();
+        
+        console.log('🔄 Ensuring database tables...');
+        await ensureTables();
+        
+        console.log('🔄 Seeding admin user...');
+        await seedAdmin();
+        
+        console.log('✅ Database setup completed successfully');
+    } catch (error) {
+        console.error('❌ Database setup failed:', error.message);
+        console.log('⚠️  Server will continue to run, but database functionality may be limited');
+        // Don't exit the process - let the server start anyway
+    }
 })();
-
-
 
 // Recalculate averageRating for all books
 const recalculateAverageRatings = async () => {
@@ -249,17 +306,20 @@ const PgSession = require('connect-pg-simple')(session);
 
 app.use(session({
   store: new PgSession({
-    pool,                   // your pg Pool
-    tableName: 'session',   // default table name
-    createTableIfMissing: true // auto-create table
+    pool,                   
+    tableName: 'session',   
+    createTableIfMissing: true 
   }),
   secret: process.env.SESSION_SECRET || 'dev-secret-key',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
-  }
+    secure: false,                    // Set to false for local development
+    httpOnly: true,                   // Add this for security
+    maxAge: 24 * 60 * 60 * 1000,     // 24 hours
+    sameSite: 'lax'                   // Use 'lax' for local development
+  },
+  name: 'sessionId'                   // Add explicit session name
 }));
 
 
@@ -976,6 +1036,22 @@ app.get('/current-user', async (req, res) => {
     } else {
         res.status(401).send('Not authenticated');
     }
+});
+
+// debug endpoint
+app.get('/debug/auth', (req, res) => {
+    console.log('Debug auth check:');
+    console.log('- req.isAuthenticated():', req.isAuthenticated());
+    console.log('- req.user:', req.user);
+    console.log('- req.session:', req.session);
+    console.log('- Session ID:', req.sessionID);
+    
+    res.json({
+        isAuthenticated: req.isAuthenticated(),
+        user: req.user || null,
+        sessionId: req.sessionID,
+        hasSession: !!req.session
+    });
 });
 
 // Seed admin username

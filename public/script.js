@@ -137,7 +137,7 @@ async function login() {
         if (response.ok) {
             const user = await response.json();
             
-            // Set user role and show appropriate UI elements
+            // Set user role
             userRole = user.role;
             
             // Hide login forms and show main app
@@ -174,14 +174,28 @@ async function login() {
             }
 
             // Update sidebar with user info
-            document.getElementById('burger-username').innerText = user.username;
+            const burgerUsername = document.getElementById('burger-username');
+            if (burgerUsername) burgerUsername.innerText = user.username;
             
-            // Refresh profile picture
-            await refreshProfilePicture();
+            // Wait a moment for the session to be fully established
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Now make authenticated requests
+            try {
+                await refreshProfilePicture();
+            } catch (error) {
+                console.log('Profile picture refresh failed:', error.message);
+            }
 
             // Fetch fresh data
             fetchBooks();
-            fetchRecommendations();
+            
+            // Fetch recommendations with error handling
+            try {
+                await fetchRecommendations();
+            } catch (error) {
+                console.log('Recommendations fetch failed:', error.message);
+            }
 
             const chatIcon = document.getElementById('chat-icon');
             if (chatIcon) chatIcon.style.display = 'block';
