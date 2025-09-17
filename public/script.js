@@ -29,68 +29,103 @@ let userRole = "";
 
 // Ensure the necessary elements are hidden on initial load
 document.addEventListener('DOMContentLoaded', async () => {
+    console.log('DOM Content Loaded - Starting initialization...');
+    
     // Show loading state initially
     showLoadingState();
     
-    const hamburgerButton = document.getElementById('hamburger-button');
-    const searchBooksSection = document.getElementById('search-books');
-    const manageUsersLink = document.getElementById('manage-users-link');
-    const addBookLink = document.getElementById('add-book-link');
-    const adminButton = document.getElementById('admin-button');
-    const adminSection = document.getElementById('admin-section');
-    const profileSection = document.getElementById('profile-section');
-    const newsletterSection = document.getElementById('newsletter-section');
-    const recommendationsSection = document.getElementById('recommendations-section');
-    const loginForm = document.getElementById('login-form');
-    const mainContent = document.getElementById('main-content');
-    const footer = document.getElementById('footer');
-
-    // Hide all sections initially
-    const allSections = [
-        hamburgerButton, searchBooksSection, manageUsersLink, addBookLink, 
-        adminButton, adminSection, profileSection, newsletterSection, 
-        recommendationsSection, loginForm, mainContent, footer
-    ];
-    
-    allSections.forEach(element => {
-        if (element) element.style.display = 'none';
-    });
-
     try {
-        // Check authentication status first
-        const isLoggedIn = await checkAuthStatus();
+        // Get all UI elements
+        const hamburgerButton = document.getElementById('hamburger-button');
+        const searchBooksSection = document.getElementById('search-books');
+        const manageUsersLink = document.getElementById('manage-users-link');
+        const addBookLink = document.getElementById('add-book-link');
+        const adminButton = document.getElementById('admin-button');
+        const adminSection = document.getElementById('admin-section');
+        const profileSection = document.getElementById('profile-section');
+        const newsletterSection = document.getElementById('newsletter-section');
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const mainContent = document.getElementById('main-content');
+        const footer = document.getElementById('footer');
+        const chatIcon = document.getElementById('chat-icon');
+
+        // Hide all sections initially
+        const allSections = [
+            hamburgerButton, searchBooksSection, manageUsersLink, addBookLink, 
+            adminButton, adminSection, profileSection, newsletterSection, 
+            loginForm, registerForm, mainContent, footer, chatIcon
+        ];
+        
+        allSections.forEach(element => {
+            if (element) element.style.display = 'none';
+        });
+
+        // Add timeout to prevent infinite loading
+        const authCheckPromise = checkAuthStatus();
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Auth check timeout')), 10000)
+        );
+
+        let isAuthenticated = false;
+        try {
+            isAuthenticated = await Promise.race([authCheckPromise, timeoutPromise]);
+            console.log('Auth check completed:', isAuthenticated);
+        } catch (error) {
+            console.error('Auth check failed or timed out:', error);
+            isAuthenticated = false;
+        }
         
         // Hide loading state
         hideLoadingState();
         
-        if (isLoggedIn) {
+        if (isAuthenticated) {
+            console.log('User is authenticated - showing main app');
             // User is authenticated - show main app
             if (hamburgerButton) hamburgerButton.style.display = 'block';
             if (searchBooksSection) searchBooksSection.style.display = 'block';
             if (newsletterSection) newsletterSection.style.display = 'block';
-            if (recommendationsSection) recommendationsSection.style.display = 'block';
             if (mainContent) mainContent.style.display = 'block';
             if (footer) footer.style.display = 'block';
+            if (chatIcon) chatIcon.style.display = 'block';
             
-            // Only fetch books if we're on the main page (has search inputs)
+            // Only fetch data if we're on the main page with required elements
             const titleInput = document.getElementById('search-title');
             if (titleInput) {
-                fetchBooks();
+                try {
+                    await fetchBooks();
+                    console.log('Books fetched successfully');
+                } catch (error) {
+                    console.error('Error fetching books:', error);
+                }
             }
             
-            // Only fetch recommendations if we're on the main page (has recommendations section)
-            if (recommendationsSection) {
-                fetchRecommendations();
-            }
         } else {
+            console.log('User is not authenticated - showing login form');
             // User is not authenticated - show login form
-            if (loginForm) loginForm.style.display = 'block';
+            if (loginForm) {
+                loginForm.style.display = 'block';
+            } else {
+                console.error('Login form element not found!');
+            }
+            
+            // Ensure other elements are hidden
+            if (registerForm) registerForm.style.display = 'none';
+            if (chatIcon) chatIcon.style.display = 'none';
         }
+        
+        console.log('Initialization completed successfully');
+        
     } catch (error) {
-        console.error('Error during initialization:', error);
+        console.error('Critical error during initialization:', error);
         hideLoadingState();
-        // Fallback to login form on error
-        if (loginForm) loginForm.style.display = 'block';
+        
+        // Fallback: show login form
+        const loginForm = document.getElementById('login-form');
+        if (loginForm) {
+            loginForm.style.display = 'block';
+            console.log('Showed fallback login form');
+        }
     }
 
     // Set up the outside click listener for the sidebar
@@ -169,7 +204,6 @@ async function login() {
             const resendModal = document.getElementById('resend-verification-modal');
             const newsletterSection = document.getElementById('newsletter-section');
             const mainContent = document.getElementById('main-content');
-            const recommendationsSection = document.getElementById('recommendations-section');
             const footer = document.getElementById('footer');
 
             // Hide forms and show main content
@@ -181,7 +215,6 @@ async function login() {
             if (hamburgerButton) hamburgerButton.style.display = 'block';
             if (searchBooksSection) searchBooksSection.style.display = 'block';
             if (newsletterSection) newsletterSection.style.display = 'block';
-            if (recommendationsSection) recommendationsSection.style.display = 'block';
             if (mainContent) mainContent.style.display = 'block';
             if (footer) footer.style.display = 'block';
 
@@ -208,13 +241,6 @@ async function login() {
             // Fetch fresh data
             fetchBooks();
             
-            // Fetch recommendations with error handling
-            try {
-                await fetchRecommendations();
-            } catch (error) {
-                console.log('Recommendations fetch failed:', error.message);
-            }
-
             const chatIcon = document.getElementById('chat-icon');
             if (chatIcon) chatIcon.style.display = 'block';
             
@@ -369,7 +395,6 @@ async function logout() {
             const bookList = document.getElementById('book-list');
             const pagination = document.getElementById('pagination');
             const newsletterSection = document.getElementById('newsletter-section');
-            const recommendationsSection = document.getElementById('recommendations-section');
             const mainContent = document.getElementById('main-content');
             const footer = document.getElementById('footer');
             const sidebar = document.getElementById('sidebar');
@@ -385,7 +410,6 @@ async function logout() {
             if (profileSection) profileSection.style.display = 'none';
             if (addBookSection) addBookSection.style.display = 'none';
             if (newsletterSection) newsletterSection.style.display = 'none';
-            if (recommendationsSection) recommendationsSection.style.display = 'none';
             if (mainContent) mainContent.style.display = 'none';
             if (footer) footer.style.display = 'none';
             if (chatIcon) chatIcon.style.display = 'none';
@@ -397,10 +421,6 @@ async function logout() {
             // Clear dynamic content
             if (bookList) bookList.innerHTML = "";
             if (pagination) pagination.innerHTML = "";
-
-            // Clear recommendations carousel
-            const recommendationsCarousel = document.querySelector('#recommendations-carousel .carousel-inner');
-            if (recommendationsCarousel) recommendationsCarousel.innerHTML = "";
 
             // Close sidebar if open
             if (sidebar && sidebar.classList.contains('active')) {
@@ -487,7 +507,7 @@ function toggleMenu() {
 
 // Function to show specific sections
 async function showSection(sectionId) {
-    const sections = document.querySelectorAll('#register-form, #login-form, #search-books, #profile-section, #admin-section, #add-book-section, #recommendations-section, .newsletter-section');
+    const sections = document.querySelectorAll('#register-form, #login-form, #search-books, #profile-section, #admin-section, #add-book-section, .newsletter-section');
     sections.forEach(section => {
         if (section) section.style.display = section.id === sectionId ? 'block' : 'none';
     });
@@ -495,13 +515,12 @@ async function showSection(sectionId) {
     // Scroll to the top of the page
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    // Reset the search inputs and recommendations when switching sections
+    // Reset the search inputs when switching sections
     const searchTitle = document.getElementById('search-title');
     const searchAuthor = document.getElementById('search-author');
     const searchGenre = document.getElementById('search-genre');
     const bookList = document.getElementById('book-list');
     const pagination = document.getElementById('pagination');
-    const recommendationsCarousel = document.querySelector('#recommendations-carousel .carousel-inner');
 
     if (sectionId === 'search-books') {
         fetchBooks();
@@ -511,36 +530,27 @@ async function showSection(sectionId) {
         if (searchGenre) searchGenre.value = "";
         if (bookList) bookList.innerHTML = "";
         if (pagination) pagination.innerHTML = "";
-        if (recommendationsCarousel) recommendationsCarousel.innerHTML = "";
     }
 
-    // Hide newsletter, footer, and recommendations sections for non-main sections
+    // Hide newsletter and footer sections for non-main sections
     const footer = document.getElementById('footer');
     const newsletterSection = document.getElementById('newsletter-section');
-    const recommendationsSection = document.getElementById('recommendations-section');
     if (sectionId === 'search-books') {
         if (footer) footer.style.display = 'block';
         if (newsletterSection) newsletterSection.style.display = 'block';
-        if (recommendationsSection) recommendationsSection.style.display = 'block';
     } else {
         if (footer) footer.style.display = 'none';
         if (newsletterSection) newsletterSection.style.display = 'none';
-        if (recommendationsSection) recommendationsSection.style.display = 'none';
     }
 
     const sidebar = document.getElementById('sidebar');
     if (sidebar && sidebar.classList.contains('active')) {
-        sidebar.classList.remove('active'); // Ensure sidebar is closed after selecting a section
+        sidebar.classList.remove('active');
     }
 
     // Fetch users when the "Manage Users" section is shown
     if (sectionId === 'admin-section') {
         fetchUsers();
-    }
-
-    // Fetch recommendations when the "Recommendations" section is shown
-    if (sectionId === 'recommendations-section') {
-        fetchRecommendations();
     }
 
     // Refresh profile picture when showing profile section
@@ -555,6 +565,24 @@ async function showSection(sectionId) {
         alert('You do not have access to this section.');
         showSection('search-books');
     }
+}
+
+
+// function to runcate text to a specified number of characters while preserving word boundaries
+function truncateText(text, maxLength = 150) {
+    if (!text || text.length <= maxLength) {
+        return text || '';
+    }
+    
+    // Find the last space within the limit to avoid cutting words
+    let truncated = text.substring(0, maxLength);
+    const lastSpaceIndex = truncated.lastIndexOf(' ');
+    
+    if (lastSpaceIndex > maxLength * 0.8) { // Only cut at word boundary if it's not too far back
+        truncated = truncated.substring(0, lastSpaceIndex);
+    }
+    
+    return truncated + '...';
 }
 
 // Add a reusable function to handle fetch errors
@@ -575,6 +603,7 @@ async function fetchWithErrorHandling(url, options = {}) {
 
 // Using fetchWithErrorHandling in fetchBooks
 async function fetchBooks(query = "", page = 1) {
+    
     const titleInput = document.getElementById('search-title');
     const authorInput = document.getElementById('search-author');
     const genreInput = document.getElementById('search-genre');
@@ -589,18 +618,33 @@ async function fetchBooks(query = "", page = 1) {
     const author = authorInput ? authorInput.value : "";
     const genre = genreInput ? genreInput.value : "";
 
-    const limit = 10; // Number of books per page
-    const searchQuery = `title=${title}&author=${author}&genre=${genre}&page=${page}&limit=${limit}`;
+    const limit = 10;
+    const searchQuery = `title=${encodeURIComponent(title)}&author=${encodeURIComponent(author)}&genre=${encodeURIComponent(genre)}&page=${page}&limit=${limit}`;
 
     // Show the searching message
     const searchingMsg = document.getElementById('searching-msg');
     if (searchingMsg) searchingMsg.style.display = 'block';
 
     try {
+        console.log('Fetching books with query:', searchQuery);
         showLoadingSpinner();
-        const data = await fetchWithErrorHandling(`/books?${searchQuery}`);
-        const books = data.books;
-        const totalBooks = data.total;
+        
+        const response = await fetch(`${API_BASE_URL}/books?${searchQuery}`, {
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Books data received:', data.books?.length || 0, 'books');
+        
+        const books = data.books || [];
+        const totalBooks = data.total || 0;
         const totalPages = Math.ceil(totalBooks / limit);
         const bookList = document.getElementById('book-list');
         const pagination = document.getElementById('pagination');
@@ -618,26 +662,32 @@ async function fetchBooks(query = "", page = 1) {
             bookList.innerHTML = "";
             books.forEach(book => {
                 // Fix: prepend API_BASE_URL if cover is a relative path
-                let coverUrl = book.cover;
+                let coverUrl = book.cover || '';
                 if (coverUrl && coverUrl.startsWith('/uploads/')) {
                     coverUrl = API_BASE_URL + coverUrl;
                 }
+
+                // Truncate the description for consistent card heights
+                // Let CSS handle line clamping instead
+                const truncatedDescription = book.description || 'No description available';
+
+                
                 const bookItem = document.createElement('div');
                 bookItem.classList.add('book-item');
                 bookItem.id = `book-${book.id}`;
                 bookItem.innerHTML = `
                     ${userRole === 'admin' ? `
                         <div class="delete-action">
-                            <button class="btn btn-danger btn-sm" onclick="confirmDeleteBook(${book.id}, '${book.title.replace(/'/g, "\\'")}')">Delete</button>
+                            <button class="btn btn-danger btn-sm" onclick="confirmDeleteBook(${book.id}, '${(book.title || '').replace(/'/g, "\\'")}')">Delete</button>
                         </div>
                     ` : ''}
-                    <img src="${coverUrl}" alt="Cover Image">
+                    <img src="${coverUrl || '/default-book-cover.png'}" alt="Cover Image" onerror="this.src='/default-book-cover.png'">
                     <div class="details">
                         <div class="details-content">
                             <div class="main-info">
-                                <h5>${book.title}</h5>
-                                <p><strong>Author: </strong> ${book.author}</p>
-                                <p class="description-text">${book.description}</p>
+                                <h5>${book.title || 'No Title'}</h5>
+                                <p><strong>Author: </strong> ${book.author || 'Unknown'}</p>
+                                <p class="description-text" title="${book.description || 'No description available'}">${truncatedDescription}</p>
                             </div>
                         </div>
                         <div class="like-dislike-ratings">
@@ -659,7 +709,7 @@ async function fetchBooks(query = "", page = 1) {
 
                 // Highlight the like/dislike buttons based on user action
                 const userAction = getUserAction(book.id);
-                updateLikeDislikeUI(book.id, book.likes, book.dislikes, userAction);
+                updateLikeDislikeUI(book.id, book.likes || 0, book.dislikes || 0, userAction);
             });
         }
 
@@ -676,6 +726,12 @@ async function fetchBooks(query = "", page = 1) {
                 pagination.appendChild(pageItem);
             }
         }
+    } catch (error) {
+        console.error('Error fetching books:', error);
+        const bookList = document.getElementById('book-list');
+        if (bookList) {
+            bookList.innerHTML = '<p class="text-center text-danger">Error loading books. Please try again.</p>';
+        }
     } finally {
         hideLoadingSpinner();
         // Hide the searching message
@@ -686,6 +742,7 @@ async function fetchBooks(query = "", page = 1) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+// Function to handle like/dislike actions
 function updateLikeDislikeUI(bookId, likes, dislikes, action) {
     const likeButton = document.querySelector(`#book-${bookId} .like-button`);
     const dislikeButton = document.querySelector(`#book-${bookId} .dislike-button`);
@@ -699,6 +756,7 @@ function updateLikeDislikeUI(bookId, likes, dislikes, action) {
         dislikeButton.classList.toggle('active', action === 'dislike'); // Highlight if disliked
     }
 }
+
 
 function getUserAction(bookId) {
     return localStorage.getItem(`book-${bookId}-reaction`);
@@ -1288,7 +1346,6 @@ async function checkAuthStatus() {
             const addBookLink = document.getElementById('add-book-link');
             const hamburgerButton = document.getElementById('hamburger-button');
             const searchBooksSection = document.getElementById('search-books');
-            const recommendationsSection = document.getElementById('recommendations-section');
             const footer = document.getElementById('footer');
             const adminButton = document.getElementById('admin-button');
             const profileSection = document.getElementById('profile-section');
@@ -1300,7 +1357,6 @@ async function checkAuthStatus() {
             if (loginForm) loginForm.style.display = 'none';
             if (mainContent) mainContent.style.display = 'block';
             if (newsletterSection) newsletterSection.style.display = 'block';
-            if (recommendationsSection) recommendationsSection.style.display = 'block';
             if (hamburgerButton) hamburgerButton.style.display = 'block';
             if (searchBooksSection) searchBooksSection.style.display = 'block';
             if (footer) footer.style.display = 'block';
@@ -1519,15 +1575,15 @@ async function fetchRecommendations() {
         const response = await fetch(`${API_BASE_URL}/recommendations`, { credentials: 'include' });
         if (response.ok) {
             const data = await response.json();
-            const recommendations = data.recommendations || []; // safer extraction
+            const recommendations = data.recommendations || [];
             const recommendationsCarousel = document.querySelector('#recommendations-carousel .carousel-inner');
 
             if (recommendationsCarousel) {
-                recommendationsCarousel.innerHTML = ""; // Clear existing recommendations
+                recommendationsCarousel.innerHTML = "";
                 recommendations.forEach((recommendation, index) => {
                     const item = document.createElement('div');
                     item.classList.add('carousel-item');
-                    if (index === 0) item.classList.add('active'); // Set the first item as active
+                    if (index === 0) item.classList.add('active');
 
                     // Fix: prepend API_BASE_URL if cover is a relative path
                     let coverUrl = recommendation.cover;
@@ -1535,14 +1591,17 @@ async function fetchRecommendations() {
                         coverUrl = API_BASE_URL + coverUrl;
                     }
 
+                    // Truncate description for recommendations too
+                    const truncatedDescription = truncateText(recommendation.description, 100);
+
                     item.innerHTML = `
                         <div class="card">
                             <img src="${coverUrl}" alt="${recommendation.title}">
                             <div class="card-body">
                                 <h5 class="card-title">${recommendation.title}</h5>
-                                <p class="card-text">${recommendation.description}</p>
+                                <p class="card-text" title="${recommendation.description}">${truncatedDescription}</p>
                                 <a href="book-details.html?bookId=${recommendation.id}" class="btn btn-success w-100 mt-2">
-                                    <i class="fas fa-info-circle"></i> View
+                                    <i class="fas fa-info-circle"></i> View Details
                                 </a>
                             </div>
                         </div>
