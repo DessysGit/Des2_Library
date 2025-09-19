@@ -333,7 +333,18 @@
       fetchReviews();
     });
 
+    // Function to close the sidebar
+    function closeSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar && sidebar.classList.contains('active')) {
+        sidebar.classList.remove('active');
+    }
+}
+
+    // Toggle Admin Edit Function
     function toggleAdminEdit() {
+      closeSidebar();
+
       const panel = document.getElementById('admin-edit-panel');
       const toggleBtn = document.getElementById('edit-toggle-btn');
       
@@ -365,6 +376,8 @@
     }
 
     function confirmDeleteCurrentBook() {
+      closeSidebar();
+      
       const title = document.getElementById('book-details-title').innerText;
       if (confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
         deleteCurrentBook();
@@ -641,7 +654,6 @@
         star.classList.toggle('active', index < value);
       });
     }
-    
   </script>
   
   <!-- Floating Chat -->

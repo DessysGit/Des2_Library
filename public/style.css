@@ -95,7 +95,7 @@ body {
 .sidebar a {
     padding: 10px 15px;
     text-decoration: none;
-    font-size: 14px;
+    font-size: 15px;
     color: #f8f9fa;
     display: block;
     transition: color 0.3s ease-in-out;
@@ -139,7 +139,7 @@ body {
 
 #sidebar-admin-controls a {
     padding: 8px 15px;
-    font-size: 14px;
+    font-size: 15px;
     border-left: 3px solid transparent;
     transition: all 0.3s ease;
 }
