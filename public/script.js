@@ -132,7 +132,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupOutsideClickListener();
 });
 
-// Add these loading state functions to script.js:
+// Function to show loading spinner on button
+function showButtonSpinner(buttonElement, originalText) {
+    buttonElement.disabled = true;
+    buttonElement.classList.add('loading');
+    buttonElement.setAttribute('data-original-text', originalText);
+    buttonElement.innerHTML = `
+        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+        Processing...
+    `;
+}
+
+// Function to hide loading spinner on button
+function hideButtonSpinner(buttonElement) {
+    buttonElement.disabled = false;
+    buttonElement.classList.remove('loading');
+    const originalText = buttonElement.getAttribute('data-original-text') || 'Submit';
+    buttonElement.innerHTML = originalText;
+    buttonElement.removeAttribute('data-original-text');
+}
+
+// Function to show loading state overlay
 function showLoadingState() {
     // Create or show loading overlay
     let loadingOverlay = document.getElementById('loading-overlay');
@@ -150,6 +170,7 @@ function showLoadingState() {
     loadingOverlay.style.display = 'flex';
 }
 
+// Function to hide loading state overlay
 function hideLoadingState() {
     const loadingOverlay = document.getElementById('loading-overlay');
     if (loadingOverlay) {
@@ -276,6 +297,7 @@ async function login() {
         hideButtonSpinner(loginButton);
     }
 }
+
 
 // Show resend verification form
 function showResendVerification() {
