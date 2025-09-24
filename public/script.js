@@ -1287,8 +1287,10 @@ function updatePasswordStrengthUI(container, bar, strength) {
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    // Add a small delay to ensure all elements are rendered
-    setTimeout(initializePasswordStrength, 100);
+    // Only initialize password strength if register form exists
+    if (document.getElementById('register-form')) {
+        setTimeout(initializePasswordStrength, 100);
+    }
 });
 
 // Add enter key support for forms
@@ -1723,6 +1725,8 @@ function deleteBookDetails() {
             });
     }
 }
+
+
 
 // Call the necessary functions on page load
 document.addEventListener('DOMContentLoaded', () => {

@@ -276,6 +276,7 @@
   <script>
     let currentBookId = null;
     let isEditMode = false;
+    let currentUserProfile = null; // Store current user profile for review fallback
 
     document.addEventListener('DOMContentLoaded', async () => {
       const params = new URLSearchParams(window.location.search);
@@ -327,6 +328,16 @@
         }
       } catch (err) {
         console.error('Failed to load book details:', err);
+      }
+
+      // Fetch current user profile for review fallback
+      try {
+        const userRes = await fetch(`${API_BASE_URL}/current-user`, { credentials: 'include' });
+        if (userRes.ok) {
+          currentUserProfile = await userRes.json();
+        }
+      } catch (err) {
+        currentUserProfile = null;
       }
 
       fetchRecommendations();
@@ -589,10 +600,19 @@
           return;
         }
 
-        reviews.forEach(review => {
+        reviews.forEach((review, idx) => {
           let profilePic = review.profilePicture || '/default-profile.png';
-          if (profilePic && profilePic.startsWith('/uploads/')) {
-              profilePic = API_BASE_URL + profilePic;
+          let username = review.username || 'Unknown';
+          // If this is the latest review and missing profilePicture, use currentUserProfile
+          if (idx === reviews.length - 1 && (!review.profilePicture || !review.username) && currentUserProfile) {
+            if (currentUserProfile.profilePicture) {
+              profilePic = currentUserProfile.profilePicture.startsWith('/uploads/')
+                ? API_BASE_URL + currentUserProfile.profilePicture
+                : currentUserProfile.profilePicture;
+            }
+            username = currentUserProfile.username || username;
+          } else if (profilePic.startsWith('/uploads/')) {
+            profilePic = API_BASE_URL + profilePic;
           }
           const card = document.createElement('div');
           card.classList.add('card', 'mb-3');
@@ -602,7 +622,7 @@
               <div>
                   <p class="mb-1">${'⭐'.repeat(review.rating || 0)}</p>
                   <p class="card-text">${review.text}</p>
-                  <p class="text-muted small">- ${review.username}</p>
+                  <p class="text-muted small">- ${username}</p>
               </div>
           </div>
       `;
@@ -639,6 +659,17 @@
 
         document.getElementById('review-text').value = '';
         setRating(0); // Reset stars
+
+        // Fetch current user profile for fallback
+        try {
+          const userRes = await fetch(`${API_BASE_URL}/current-user`, { credentials: 'include' });
+          if (userRes.ok) {
+            currentUserProfile = await userRes.json();
+          }
+        } catch (err) {
+          currentUserProfile = null;
+        }
+
         fetchReviews();
       } catch (err) {
         console.error('Error submitting review:', err);
