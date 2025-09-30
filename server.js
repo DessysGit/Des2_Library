@@ -158,7 +158,7 @@ async function ensureTables() {
                     likes INTEGER DEFAULT 0,
                     dislikes INTEGER DEFAULT 0,
                     summary TEXT,
-                    "averageRating" FLOAT DEFAULT 0
+                    averagerating FLOAT DEFAULT 0
                 );
 
                 CREATE TABLE IF NOT EXISTS likes (
@@ -236,6 +236,9 @@ async function seedAdmin() {
         console.log('🔄 Seeding admin user...');
         await seedAdmin();
         
+        console.log('🔄 Recalculating average ratings...');
+        await recalculateAverageRatings();
+        
         console.log('✅ Database setup completed successfully');
     } catch (error) {
         console.error('❌ Database setup failed:', error.message);
@@ -246,18 +249,22 @@ async function seedAdmin() {
 
 // Recalculate averageRating for all books
 const recalculateAverageRatings = async () => {
-    const booksResult = await pool.query('SELECT id FROM books');
-    const books = booksResult.rows;
+    try {
+        const booksResult = await pool.query('SELECT id FROM books');
+        const books = booksResult.rows;
+        let updated = 0;
 
-    for (const book of books) {
-        const row = await pool.query('SELECT AVG(rating) AS averageRating FROM reviews WHERE bookId = $1', [book.id]);
-        const averageRating = row.rows[0]?.averageRating || 0;
-        await pool.query('UPDATE books SET averageRating = $1 WHERE id = $2', [averageRating, book.id]);
+        for (const book of books) {
+            const row = await pool.query('SELECT AVG(rating) AS avg_rating FROM reviews WHERE bookid = $1', [book.id]);
+            const averageRating = parseFloat(row.rows[0]?.avg_rating) || 0;
+            await pool.query('UPDATE books SET averagerating = $1 WHERE id = $2', [averageRating, book.id]);
+            if (averageRating > 0) updated++;
+        }
+        console.log(`✅ Average ratings recalculated for ${books.length} books (${updated} with reviews)`);
+    } catch (err) {
+        console.error('❌ Error recalculating average ratings:', err.message);
     }
 };
-
-// Call the function during server startup
-recalculateAverageRatings();
 
 // Configure Passport.js for authentication
 passport.use(new LocalStrategy({
@@ -746,7 +753,8 @@ const count = countResult.rows[0].total;
 
 const booksWithAdminFlag = rows.map(book => ({
   ...book,
-  isAdmin: isAdmin
+  isAdmin: isAdmin,
+  averageRating: parseFloat(book.averagerating) || 0 // Map to camelCase for frontend
 }));
 
 
@@ -770,12 +778,19 @@ app.get('/books/:id', async (req, res) => {
   const bookId = req.params.id;
   try {
     const result = await pool.query(
-      'SELECT id, title, author, genres, summary, description, cover, file, averageRating, likes, dislikes FROM books WHERE id = $1',
+      'SELECT id, title, author, genres, summary, description, cover, file, averagerating, likes, dislikes FROM books WHERE id = $1',
       [bookId]
     );
     if (result.rows.length === 0) return res.status(404).send('Book not found');
-    res.json(result.rows[0]);
+    
+    // Map averagerating to averageRating for frontend compatibility
+    const book = result.rows[0];
+    book.averageRating = parseFloat(book.averagerating) || 0;
+    delete book.averagerating;
+    
+    res.json(book);
   } catch (err) {
+    console.error('Error fetching book details:', err);
     res.status(500).send('Failed to fetch book details');
   }
 });
@@ -1397,15 +1412,29 @@ app.get('/books/:id/reviews', async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
 
-    const result = await pool.query(
-        `SELECT reviews.username, reviews.text, reviews.rating, users.profilePicture 
-         FROM reviews 
-         JOIN users ON reviews.userId = users.id 
-         WHERE reviews.bookId = $1 
-         LIMIT $2 OFFSET $3`,
-        [bookId, limit, offset]
-    );
-    res.json(result.rows);
+    try {
+        // Use lowercase column names to match your actual database schema
+        const result = await pool.query(
+            `SELECT 
+                r.username, 
+                r.text, 
+                r.rating,
+                COALESCE(u.profilepicture, '') as profilepicture
+             FROM reviews r
+             LEFT JOIN users u ON r.userid = u.id 
+             WHERE r.bookid = $1 
+             ORDER BY r.id DESC
+             LIMIT $2 OFFSET $3`,
+            [bookId, limit, offset]
+        );
+        
+        console.log(`Fetched ${result.rows.length} reviews for book ${bookId}`);
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Error fetching reviews:', err);
+        console.error('SQL Error details:', err.message);
+        res.status(500).json({ error: 'Failed to fetch reviews', details: err.message });
+    }
 });
 
 // Endpoint to submit a review for a book
@@ -1416,19 +1445,38 @@ app.post('/books/:id/reviews', isAuthenticated, async (req, res) => {
     const username = req.user.username;
 
     if (!text || !rating || rating < 1 || rating > 5) {
-        return res.status(400).send('Invalid review data');
+        return res.status(400).json({ error: 'Invalid review data' });
     }
 
-    await pool.query(
-        'INSERT INTO reviews (bookId, userId, username, text, rating) VALUES ($1, $2, $3, $4, $5)',
-        [bookId, userId, username, text, rating]
-    );
+    try {
+        // Use lowercase column names
+        await pool.query(
+            'INSERT INTO reviews (bookid, userid, username, text, rating) VALUES ($1, $2, $3, $4, $5)',
+            [bookId, userId, username, text, rating]
+        );
 
-    // Update the average rating for the book
-    const row = await pool.query('SELECT AVG(rating) AS averageRating FROM reviews WHERE bookId = $1', [bookId]);
-    const averageRating = row.rows[0]?.averageRating || 0;
-    await pool.query('UPDATE books SET averageRating = $1 WHERE id = $2', [averageRating, bookId]);
-    res.status(201).send({ message: 'Review added successfully', averageRating });
+        // Update average rating - use lowercase column name
+        const ratingResult = await pool.query(
+            'SELECT AVG(rating) AS avg_rating FROM reviews WHERE bookid = $1', 
+            [bookId]
+        );
+        const averageRating = parseFloat(ratingResult.rows[0]?.avg_rating) || 0;
+
+        await pool.query(
+            'UPDATE books SET averagerating = $1 WHERE id = $2', 
+            [averageRating, bookId]
+        );
+
+        console.log(`Review submitted for book ${bookId} by user ${username}`);
+        res.status(201).json({ 
+            message: 'Review added successfully', 
+            averageRating: averageRating 
+        });
+
+    } catch (err) {
+        console.error('Error submitting review:', err);
+        res.status(500).json({ error: 'Failed to submit review', details: err.message });
+    }
 });
 
 // Serve static files
@@ -1449,7 +1497,7 @@ app.use((err, req, res, next) => {
 
 // Endpoint to handle chat with AI
 // This endpoint uses the Hugging Face API to interact with the Mistral-7B-Instruct model
-const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY; // Remove fallback key
+const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY; 
 
 app.post('/api/chat', async (req, res) => {
   const userMessage = req.body.message;
