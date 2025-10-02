@@ -940,7 +940,7 @@ async function addBook() {
     if (bookFile) formData.append('bookFile', bookFile);
 
     try {
-        const response = await fetch(`${API_BASE_URL}/addBook`, { 
+        const response = await fetch(`${API_BASE_URL}/books`, { 
             method: 'POST', 
             body: formData, 
             credentials: 'include' 
@@ -1344,7 +1344,7 @@ async function updateProfile() {
     const favoriteAuthors = document.getElementById('profile-authors').value;
     const favoriteBooks = document.getElementById('profile-books').value;
 
-    const response = await fetch(`${API_BASE_URL}/updateProfile`, {
+    const response = await fetch(`${API_BASE_URL}/users/updateProfile`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, favoriteGenres, favoriteAuthors, favoriteBooks })
@@ -1368,7 +1368,7 @@ async function uploadProfilePicture() {
         formData.append('profilePicture', fileInput.files[0]);
         
         try {
-            const response = await fetch(`${API_BASE_URL}/upload-profile-picture`, {
+            const response = await fetch(`${API_BASE_URL}/users/upload-profile-picture`, {
                 method: 'POST',
                 body: formData,
                 credentials: 'include'
@@ -1411,7 +1411,7 @@ if (profilePictureInput) {
 // function to refresh profile picture from database
 async function refreshProfilePicture() {
     try {
-        const response = await fetch(`${API_BASE_URL}/profile`, { credentials: 'include' });
+        const response = await fetch(`${API_BASE_URL}/users/profile`, { credentials: 'include' });
         if (response.ok) {
             const user = await response.json();
             if (user.profilePicture) {
@@ -1431,7 +1431,7 @@ async function refreshProfilePicture() {
 // Function to fetch user profile and display it
 async function fetchProfile() {
     try {
-        const response = await fetch(`${API_BASE_URL}/profile`, { credentials: 'include' });
+        const response = await fetch(`${API_BASE_URL}/users/profile`, { credentials: 'include' });
         if (response.ok) {
             const user = await response.json();
             
