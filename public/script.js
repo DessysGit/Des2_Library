@@ -530,7 +530,7 @@ function toggleMenu() {
     sidebar.classList.toggle('active');
 
     if (sidebar.classList.contains('active')) {
-        // Refresh profile picture when sidebar opens
+        // ADD THIS LINE - Refresh profile picture when sidebar opens
         refreshProfilePicture();
         document.addEventListener('click', closeMenuOnClickOutside);
     } else {
@@ -1412,59 +1412,67 @@ if (profilePictureInput) {
 
 // function to refresh profile picture from database
 async function refreshProfilePicture() {
+    // Default SVG image for users without profile pictures
+    const defaultImage = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="80"%3E%3Crect fill="%23444" width="80" height="80"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23fff" font-size="32" font-family="Arial"%3E👤%3C/text%3E%3C/svg%3E';
+
     try {
         const response = await fetch(`${API_BASE_URL}/users/profile`, { credentials: 'include' });
         if (response.ok) {
             const user = await response.json();
+
+            // Use default if no profile picture
+            let profilePictureUrl = user.profilePicture || defaultImage;
+
+            // Add timestamp to prevent caching
             const timestamp = '?t=' + new Date().getTime();
-            
-            // Determine profile picture URL
-            let profilePictureUrl = user.profilePicture || '';
-            
-            // If no profile picture, use default
-            if (!profilePictureUrl) {
-                profilePictureUrl = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect fill="%23333" width="80" height="80"/><text x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23fff" font-size="32" font-family="Arial">👤</text></svg>';
-            } else if (profilePictureUrl.startsWith('/uploads/')) {
+
+            // Handle relative URLs (local uploads)
+            if (profilePictureUrl && profilePictureUrl.startsWith('/uploads/')) {
                 profilePictureUrl = API_BASE_URL + profilePictureUrl;
             }
-            
-            // Update both profile pictures
+
             const profilePic = document.getElementById('profile-picture');
             const burgerProfilePic = document.getElementById('burger-profile-picture');
-            
+
+            // Update both profile pictures
             if (profilePic) {
-                profilePic.src = profilePictureUrl + (profilePictureUrl.includes('data:') ? '' : timestamp);
+                profilePic.src = profilePictureUrl.includes('data:') ? profilePictureUrl : profilePictureUrl + timestamp;
                 profilePic.onerror = function() {
-                    this.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect fill="%23333" width="120" height="120"/><text x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23fff" font-size="48" font-family="Arial">👤</text></svg>';
+                    this.src = defaultImage;
+                    console.log('Failed to load profile picture, using default');
                 };
             }
-            
+
             if (burgerProfilePic) {
-                burgerProfilePic.src = profilePictureUrl + (profilePictureUrl.includes('data:') ? '' : timestamp);
+                burgerProfilePic.src = profilePictureUrl.includes('data:') ? profilePictureUrl : profilePictureUrl + timestamp;
                 burgerProfilePic.onerror = function() {
-                    this.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect fill="%23333" width="80" height="80"/><text x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23fff" font-size="32" font-family="Arial">👤</text></svg>';
+                    this.src = defaultImage;
+                    console.log('Failed to load sidebar profile picture, using default');
                 };
             }
-            
-            return true;
+
+        } else {
+            console.warn('Failed to fetch profile, using default image');
+            setDefaultProfilePictures();
         }
     } catch (error) {
         console.error('Error refreshing profile picture:', error);
-        // Set default on error
-        setDefaultProfilePicture();
+        setDefaultProfilePictures();
     }
-    return false;
 }
 
-// Helper function to set default profile picture
-function setDefaultProfilePicture() {
-    const defaultImage = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect fill="%23333" width="80" height="80"/><text x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23fff" font-size="32" font-family="Arial">👤</text></svg>';
-    
+// Helper function to set default profile pictures
+function setDefaultProfilePictures() {
+    const defaultImage = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="80"%3E%3Crect fill="%23444" width="80" height="80"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23fff" font-size="32" font-family="Arial"%3E👤%3C/text%3E%3C/svg%3E';
+    const defaultImageLarge = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120"%3E%3Crect fill="%23444" width="120" height="120"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23fff" font-size="48" font-family="Arial"%3E👤%3C/text%3E%3C/svg%3E';
+
     const profilePic = document.getElementById('profile-picture');
     const burgerProfilePic = document.getElementById('burger-profile-picture');
-    
-    if (profilePic) profilePic.src = defaultImage.replace('80', '120').replace('32', '48');
+
+    if (profilePic) profilePic.src = defaultImageLarge;
     if (burgerProfilePic) burgerProfilePic.src = defaultImage;
+
+    console.log('Set default profile pictures');
 }
 
 // Function to fetch user profile and display it

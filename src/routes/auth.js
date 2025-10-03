@@ -381,14 +381,24 @@ router.get('/current-user', async (req, res) => {
   if (req.isAuthenticated()) {
     try {
       const result = await pool.query(
-        'SELECT id, username, role, profilePicture FROM users WHERE id = $1',
+        'SELECT id, username, role, profilepicture as "profilePicture" FROM users WHERE id = $1',
         [req.user.id]
       );
       const freshUser = result.rows[0];
+      // Ensure profilePicture is always returned (even if null)
+      if (!freshUser.profilePicture) {
+        freshUser.profilePicture = '';
+      }
       res.json(freshUser);
     } catch (err) {
       console.error('Error fetching current user:', err);
-      res.json(req.user);
+      // Return basic user info with empty profilePicture on error
+      res.json({
+        id: req.user.id,
+        username: req.user.username,
+        role: req.user.role,
+        profilePicture: req.user.profilePicture || ''
+      });
     }
   } else {
     res.status(401).send('Not authenticated');

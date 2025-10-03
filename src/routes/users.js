@@ -26,7 +26,7 @@ router.get('/profile', isAuthenticated, async (req, res) => {
   const { id } = req.user;
   try {
     const result = await pool.query(
-      'SELECT username, email, role, profilePicture, favoriteGenres, favoriteAuthors, favoriteBooks FROM users WHERE id = $1',
+      'SELECT username, email, role, profilepicture as "profilePicture", favoritegenres as "favoriteGenres", favoriteauthors as "favoriteAuthors", favoritebooks as "favoriteBooks" FROM users WHERE id = $1',
       [id]
     );
     
@@ -34,7 +34,13 @@ router.get('/profile', isAuthenticated, async (req, res) => {
       return res.status(404).send('User not found');
     }
 
-    res.json(result.rows[0]);
+    const user = result.rows[0];
+    // Ensure profilePicture is always a string
+    if (!user.profilePicture) {
+      user.profilePicture = '';
+    }
+
+    res.json(user);
   } catch (err) {
     console.error('Profile query error:', err);
     res.status(500).send(err.message);
@@ -84,7 +90,7 @@ router.post('/upload-profile-picture', isAuthenticated, upload.single('profilePi
           }
 
           await pool.query(
-            'UPDATE users SET profilePicture = $1 WHERE id = $2',
+            'UPDATE users SET profilepicture = $1 WHERE id = $2',
             [result.secure_url, userId]
           );
 
@@ -104,7 +110,7 @@ router.post('/upload-profile-picture', isAuthenticated, upload.single('profilePi
       const profilePictureUrl = `/uploads/${req.file.originalname}`;
 
       await pool.query(
-        'UPDATE users SET profilePicture = $1 WHERE id = $2',
+        'UPDATE users SET profilepicture = $1 WHERE id = $2',
         [profilePictureUrl, userId]
       );
 
