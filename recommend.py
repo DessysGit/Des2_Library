@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 import re
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)  # Only show warnings and errors
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
