@@ -599,10 +599,9 @@
               errorMessage = await response.text();
             }
           } catch (e) {
-            console.error('Error parsing error response:', e);
+            // Error parsing error response
           }
           
-          console.error('Server error:', errorMessage);
           throw new Error(errorMessage);
         }
       } catch (error) {
