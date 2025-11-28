@@ -129,12 +129,7 @@ EMAIL_FROM=noreply@yourdomain.com
 HUGGINGFACE_API_KEY=hf_your_api_key
 ```
 
-4. **Add timestamps to database tables** (optional but recommended)
-```bash
-npm run add-timestamps
-```
-
-5. **Start the development server**
+4. **Start the development server**
 ```bash
 npm run dev
 ```
@@ -154,16 +149,11 @@ npm run dev
 ### Database
 - `npm run test:connection` - Test database connection
 - `npm run diagnose` - Run connection diagnostics
-- `npm run add-timestamps` - Add created_at columns to tables
 
 ### Testing
 - `npm run test-deployment` - Test all endpoints
 - `npm run test-dashboard` - Test analytics endpoints
 - `npm run test-email` - Test email service
-
-### Deployment
-- `npm run verify-production` - Check production environment config
-- `npm run fix-cloudinary` - Fix malformed Cloudinary URLs
 
 ---
 
@@ -330,7 +320,6 @@ npm run test-email your.email@example.com
 
 ```bash
 # Test analytics endpoints
-npm run test-dashboard
 
 # Make sure you're logged in as admin
 # Check browser console for errors
@@ -390,7 +379,6 @@ Make sure to set all variables in Render/Netlify dashboard:
 Potential features to add:
 - [ ] Book borrowing system with due dates
 - [ ] Advanced search with filters
-- [ ] Dark mode toggle
 - [ ] Progressive Web App (PWA)
 - [ ] Download tracking
 - [ ] Reading lists/collections
@@ -431,24 +419,3 @@ For questions or support, please open an issue on GitHub.
 ---
 
 **Built with ❤️ for book lovers**
-
----
-
-## 📸 Screenshots
-
-### Main Library Interface
-Browse, search, and download books with an intuitive interface.
-
-### Admin Analytics Dashboard
-Real-time statistics with interactive charts and data visualization.
-
-### Book Details Page
-Detailed book information with reviews, ratings, and download options.
-
-### AI Chatbot Assistant
-Get personalized recommendations and help finding books.
-
----
-
-**Last Updated**: November 2025  
-**Version**: 1.0.0
