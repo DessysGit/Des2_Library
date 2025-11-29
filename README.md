@@ -1,9 +1,10 @@
 # 📚 Des2 Library Management System
 
-A modern, full-stack library management application with AI-powered recommendations and real-time analytics dashboard.
+A modern, full-stack library management application with AI-powered recommendations, real-time analytics dashboard, structured logging, and automated testing.
 
 ![Node.js](https://img.shields.io/badge/Node.js-v18+-green)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-13+-blue)
+![Tests](https://img.shields.io/badge/tests-31%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-ISC-orange)
 
 ---
@@ -32,6 +33,13 @@ A modern, full-stack library management application with AI-powered recommendati
 - 👥 **User Management** - View and manage user accounts
 - ☁️ **Cloud Storage** - Automatic file upload to Cloudinary
 
+### Developer Features
+- 🧪 **Automated Testing** - 31 unit and integration tests with Jest
+- 📝 **Structured Logging** - Winston logger with file rotation and log levels
+- 🔒 **Secure File Uploads** - MIME type + extension validation, size limits, filename sanitization
+- ⚙️ **Environment-based Config** - No hardcoded values, production safety checks
+- 🛡️ **Security Hardened** - Input validation, rate limiting, session management
+
 ---
 
 ## 🛠️ Tech Stack
@@ -43,6 +51,8 @@ A modern, full-stack library management application with AI-powered recommendati
 - **Session Management**: express-session, connect-pg-simple
 - **File Upload**: Multer, Cloudinary
 - **Email**: Resend / Gmail SMTP / SendGrid
+- **Logging**: Winston (structured logging)
+- **Testing**: Jest, Supertest
 
 ### Frontend
 - **UI**: Vanilla JavaScript, HTML5, CSS3
@@ -86,7 +96,13 @@ npm install
 
 3. **Set up environment variables**
 
-Create a `.env` file in the root directory:
+Copy `.env.example` to `.env` and fill in your values:
+
+```bash
+cp .env.example .env
+```
+
+Required environment variables:
 
 ```env
 # Database
@@ -95,7 +111,7 @@ DATABASE_URL=postgresql://user:password@host:5432/database
 # Server
 NODE_ENV=development
 PORT=3000
-SESSION_SECRET=your_secret_key_here
+SESSION_SECRET=your_secret_key_here  # Generate: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 # URLs
 FRONTEND_URL=http://localhost:3000
@@ -103,7 +119,7 @@ BACKEND_URL=http://localhost:3000
 
 # Admin Account
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD=your_secure_password
+ADMIN_PASSWORD=your_secure_password  # Change this!
 ADMIN_EMAIL=admin@yourlibrary.com
 
 # Cloudinary (for file uploads)
@@ -112,24 +128,21 @@ CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
 
 # Email Service (choose one)
-# Option 1: Resend (recommended - 3,000 emails/month free)
 RESEND_API_KEY=re_your_api_key
 EMAIL_FROM=noreply@yourdomain.com
 
-# Option 2: Gmail SMTP
-# GMAIL_USER=your.email@gmail.com
-# GMAIL_APP_PASSWORD=your_16_char_app_password
-# EMAIL_FROM=your.email@gmail.com
-
-# Option 3: SendGrid
-# SENDGRID_API_KEY=SG.your_api_key
-# SENDGRID_FROM_EMAIL=noreply@yourdomain.com
-
-# AI (optional)
-HUGGINGFACE_API_KEY=hf_your_api_key
+# Logging (optional)
+LOG_LEVEL=info  # debug, info, warn, error
 ```
 
-4. **Start the development server**
+See `.env.example` for all available options and detailed comments.
+
+4. **Run tests** (optional but recommended)
+```bash
+npm test
+```
+
+5. **Start the development server**
 ```bash
 npm run dev
 ```
@@ -143,17 +156,21 @@ npm run dev
 ## 📋 Available Scripts
 
 ### Development
-- `npm run dev` - Start server with nodemon (auto-restart)
 - `npm start` - Start production server
+- `npm run dev` - Start with nodemon (auto-restart)
+
+### Testing
+- `npm test` - Run all tests
+- `npm run test:watch` - Run tests in watch mode
+- `npm run test:coverage` - Generate coverage report
 
 ### Database
 - `npm run test:connection` - Test database connection
 - `npm run diagnose` - Run connection diagnostics
 
-### Testing
-- `npm run test-deployment` - Test all endpoints
-- `npm run test-dashboard` - Test analytics endpoints
+### Other
 - `npm run test-email` - Test email service
+- `npm run test-dashboard` - Test analytics endpoints
 
 ---
 
@@ -166,10 +183,13 @@ Library_Project/
 │   │   ├── database.js          # PostgreSQL connection
 │   │   ├── cloudinary.js        # Cloudinary setup
 │   │   ├── environment.js       # Environment config
-│   │   └── passport.js          # Authentication strategy
+│   │   ├── passport.js          # Authentication strategy
+│   │   └── logger.js            # Winston logging config
 │   ├── middleware/
 │   │   ├── auth.js              # Authentication middleware
-│   │   └── rateLimiter.js       # Rate limiting
+│   │   ├── rateLimiter.js       # Rate limiting
+│   │   ├── requestLogger.js     # HTTP request logging
+│   │   └── __tests__/           # Middleware tests
 │   ├── routes/
 │   │   ├── auth.js              # Login, register, password reset
 │   │   ├── books.js             # Book CRUD operations
@@ -183,6 +203,10 @@ Library_Project/
 │   ├── services/
 │   │   ├── emailService.js      # Email sending
 │   │   └── databaseService.js   # Database utilities
+│   ├── utils/
+│   │   ├── fileValidation.js    # Secure file upload validation
+│   │   ├── testHelpers.js       # Testing utilities
+│   │   └── __tests__/           # Utility tests
 │   └── app.js                   # Express app configuration
 ├── public/
 │   ├── index.html               # Main application
@@ -193,12 +217,119 @@ Library_Project/
 │   ├── admin-dashboard.js       # Dashboard logic
 │   ├── style.css                # Global styles
 │   └── chatbot/                 # Chatbot interface
+├── logs/                        # Log files (auto-generated)
 ├── uploads/                     # Local file storage (dev only)
+├── coverage/                    # Test coverage reports
 ├── server.js                    # Application entry point
 ├── recommend.py                 # Python recommendation script
-├── package.json
-└── README.md
+├── .env.example                 # Environment template
+└── package.json
 ```
+
+---
+
+## 🧪 Testing
+
+This project includes automated testing with Jest:
+
+```bash
+# Run all tests
+npm test
+
+# Watch mode (re-runs on changes)
+npm run test:watch
+
+# Coverage report
+npm run test:coverage
+```
+
+**Test Coverage:**
+- ✅ Authentication middleware (8 tests)
+- ✅ File validation utilities (23 tests)
+- **Total: 31 tests passing**
+
+### Writing Tests
+
+Use the test helpers for easier test creation:
+
+```javascript
+const { mockRequest, mockResponse, mockUser } = require('./src/utils/testHelpers');
+
+it('should authenticate admin user', () => {
+  const req = mockRequest({ 
+    user: mockUser('admin'),
+    isAuthenticated: () => true 
+  });
+  const res = mockResponse();
+  const next = jest.fn();
+  
+  isAdmin(req, res, next);
+  
+  expect(next).toHaveBeenCalled();
+});
+```
+
+---
+
+## 📝 Logging
+
+The application uses Winston for structured logging:
+
+```javascript
+const logger = require('./src/config/logger');
+
+// Different log levels
+logger.info('User logged in', { userId: 123, username: 'john' });
+logger.warn('Unusual activity detected', { userId: 123 });
+logger.error('Database connection failed', { error: err.message });
+
+// Helper methods
+logger.logAuth('john_doe', 'login', true, { ip: '192.168.1.1' });
+logger.logError(error, { userId: req.user?.id, action: 'book_upload' });
+logger.logFileUpload('book.pdf', 1024000, true);
+```
+
+**Log Levels:** debug, info, warn, error
+
+**Log Files** (production only):
+- `logs/combined.log` - All logs
+- `logs/error.log` - Errors only
+
+**Configuration:**
+```env
+LOG_LEVEL=info                    # Set log level
+ENABLE_FILE_LOGGING=true          # Enable file logging in dev
+LOG_SQL_QUERIES=true              # Log database queries (debug only)
+```
+
+---
+
+## 🔒 Security Features
+
+### File Upload Security
+- **MIME type validation** - Checks actual file type, not just extension
+- **Extension validation** - Ensures file extension matches content
+- **Size limits** - 2MB for images, 50MB for PDFs
+- **Filename sanitization** - Prevents directory traversal attacks
+- **Rejected file types** - Executables, scripts, and other dangerous files
+
+### Authentication & Authorization
+- **Password hashing** - bcrypt with salt rounds
+- **Session management** - PostgreSQL-backed sessions
+- **Email verification** - Required for account activation
+- **Role-based access** - Admin vs. User permissions
+- **Password reset** - Secure token-based recovery
+
+### Environment Security
+- **Production checks** - Server won't start with weak defaults
+- **No hardcoded secrets** - All sensitive data in environment variables
+- **Environment validation** - Missing required variables cause startup failure
+
+### Other Security
+- **Rate limiting** - Prevents brute force attacks
+- **CSRF protection** - SameSite cookie policy
+- **SQL injection prevention** - Parameterized queries
+- **Input validation** - express-validator for user inputs
 
 ---
 
@@ -225,58 +356,57 @@ Flexible email service with multiple options:
 - **Templates**: Beautiful HTML email templates
 - **Multi-provider**: Resend, Gmail, SendGrid support
 
-### 4. Security Features
-- **Password hashing**: bcrypt with salt rounds
-- **Session management**: PostgreSQL-backed sessions
-- **Email verification**: Required for account activation
-- **Rate limiting**: Prevent brute force attacks
-- **CSRF protection**: SameSite cookie policy
-- **Role-based access**: Admin vs. User permissions
-
 ---
 
 ## 🔧 Configuration
 
 ### Database Setup (Supabase)
 
-1. Create a Supabase project
-2. Use **Session Mode** connection (port 5432)
-3. Copy the connection string
-4. Add to `.env` as `DATABASE_URL`
+1. Create a Supabase project at https://supabase.com
+2. Go to Project Settings → Database
+3. Use **Session Mode** connection string (port 5432, not 6543)
+4. Copy the connection string
+5. Add to `.env` as `DATABASE_URL`
 
 Tables are created automatically on first run.
 
 ### Cloudinary Setup
 
 1. Create account at https://cloudinary.com
-2. Get your Cloud Name, API Key, and API Secret
-3. Add credentials to `.env`
-4. Files are uploaded automatically when adding books
+2. Go to Dashboard → Account Details
+3. Copy Cloud Name, API Key, and API Secret
+4. Add credentials to `.env`
+5. Files are uploaded automatically when adding books
 
 ### Email Service Setup
 
 **Option 1: Resend (Recommended)**
-1. Sign up at https://resend.com
-2. Create API key
-3. Add `RESEND_API_KEY` to `.env`
-4. Use `onboarding@resend.dev` for testing
+- Free tier: 3,000 emails/month
+- Sign up: https://resend.com
+- Create API key
+- Add `RESEND_API_KEY` to `.env`
+- Use `onboarding@resend.dev` for testing
 
 **Option 2: Gmail**
-1. Enable 2-Step Verification on Google account
-2. Generate App Password
-3. Add credentials to `.env`
+- 100% free
+- Enable 2-Step Verification: https://myaccount.google.com/security
+- Generate App Password: https://myaccount.google.com/apppasswords
+- Add `GMAIL_USER` and `GMAIL_APP_PASSWORD` to `.env`
 
 **Option 3: SendGrid**
-1. Sign up at https://sendgrid.com
-2. Create API key
-3. Add to `.env`
+- Free tier: 100 emails/day
+- Sign up: https://sendgrid.com
+- Create API key
+- Add `SENDGRID_API_KEY` to `.env`
 
 ---
 
 ## 👥 Default Admin Account
 
-**Username**: `admin`  
-**Password**: Set in `.env` file (`ADMIN_PASSWORD`)
+**Username**: Set in `.env` (`ADMIN_USERNAME`, default: `admin`)  
+**Password**: Set in `.env` (`ADMIN_PASSWORD`)
+
+⚠️ **Important:** Change the default password before deployment!
 
 The admin account is created automatically on first server start.
 
@@ -288,42 +418,61 @@ The admin account is created automatically on first server start.
 
 ```bash
 # Test your connection
-npm run diagnose
+npm run test:connection
 
-# Common fixes:
-# 1. Use Session Mode (port 5432), not Transaction Mode
-# 2. Check Supabase project is not paused
-# 3. Verify DATABASE_URL is correct
+# Run diagnostics
+npm run diagnose
 ```
+
+**Common fixes:**
+- Use Session Mode (port 5432), not Transaction Mode (port 6543)
+- Check Supabase project is not paused
+- Verify `DATABASE_URL` is correct in `.env`
+- Ensure no firewall blocking the connection
 
 ### Email Not Sending
 
 ```bash
 # Test email service
 npm run test-email your.email@example.com
-
-# Check:
-# 1. API keys are correct
-# 2. Email service is configured
-# 3. Check spam folder
 ```
 
-### Cloudinary Upload Failing
+**Common fixes:**
+- Verify API keys are correct
+- Check email service is properly configured
+- Look in spam/junk folder
+- Check service provider dashboard for errors
+
+### File Upload Failing
+
+**Check:**
+- File type is allowed (images: JPG/PNG/WebP, documents: PDF)
+- File size is within limits (2MB for covers, 50MB for PDFs)
+- Cloudinary credentials are correct
+- Check server logs for detailed error
+
+### Tests Failing
 
 ```bash
-# Verify credentials in .env
-# Check Cloudinary dashboard for errors
-# Ensure CLOUDINARY_CLOUD_NAME, API_KEY, API_SECRET are set
+# Install test dependencies if missing
+npm install --save-dev jest supertest @types/jest
+
+# Run specific test
+npm test -- auth.test.js
+
+# Check for environment issues
+# Make sure ADMIN_USERNAME is set (default: 'admin')
 ```
 
-### Dashboard Not Loading
+### Server Won't Start
 
-```bash
-# Test analytics endpoints
+**Common issues:**
+- Missing required environment variables (check `.env.example`)
+- Using default password in production
+- Database connection failed
+- Port already in use
 
-# Make sure you're logged in as admin
-# Check browser console for errors
-```
+**Check logs** for specific error messages.
 
 ---
 
@@ -334,14 +483,14 @@ npm run test-email your.email@example.com
 3. Select "Analytics Dashboard"
 4. View real-time statistics and charts
 
-**Features:**
-- Statistics overview cards
-- Genre distribution chart
-- User growth chart (30 days)
-- Popular books ranking
+**Dashboard Features:**
+- Statistics overview (users, books, reviews, downloads)
+- Genre distribution pie chart
+- User growth trend (last 30 days)
+- Popular books table
 - Recent activity feed
 - Top reviewers leaderboard
-- Books without reviews
+- Books without reviews list
 
 ---
 
@@ -352,25 +501,38 @@ npm run test-email your.email@example.com
 1. Push code to GitHub
 2. Create new Web Service on Render
 3. Connect GitHub repository
-4. Add environment variables
-5. Set `NODE_ENV=production`
-6. Deploy
+4. Configure:
+   - Build Command: `npm install`
+   - Start Command: `npm start`
+5. Add all environment variables from `.env`
+6. Set `NODE_ENV=production`
+7. Deploy
 
 ### Frontend (Netlify)
 
-1. Deploy `public/` folder
-2. Set build command: (none)
-3. Set publish directory: `public`
-4. Add environment variables if needed
+1. Connect GitHub repository
+2. Configure:
+   - Build Command: (none)
+   - Publish Directory: `public`
+3. Add environment variables if needed
+4. Deploy
 
 ### Environment Variables for Production
 
-Make sure to set all variables in Render/Netlify dashboard:
+**Required:**
 - `NODE_ENV=production`
 - `DATABASE_URL` (production database)
+- `SESSION_SECRET` (strong random string)
+- `ADMIN_PASSWORD` (strong password, not default)
 - `CLOUDINARY_*` credentials
 - Email service credentials
 - `FRONTEND_URL` and `BACKEND_URL`
+
+**Optional:**
+- `LOG_LEVEL=info`
+- `HUGGINGFACE_API_KEY`
+
+⚠️ **Security:** Never use default passwords or secrets in production!
 
 ---
 
@@ -380,11 +542,36 @@ Potential features to add:
 - [ ] Book borrowing system with due dates
 - [ ] Advanced search with filters
 - [ ] Progressive Web App (PWA)
-- [ ] Download tracking
+- [ ] Download tracking and analytics
 - [ ] Reading lists/collections
 - [ ] Social sharing features
 - [ ] Discussion forums
-- [ ] Mobile app
+- [ ] Mobile app (React Native/Flutter)
+- [ ] Book reservations
+- [ ] Fine management system
+- [ ] Multi-language support
+- [ ] Dark mode
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please follow these steps:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Write/update tests
+5. Run tests (`npm test`)
+6. Commit your changes (`git commit -m 'Add amazing feature'`)
+7. Push to the branch (`git push origin feature/amazing-feature`)
+8. Open a Pull Request
+
+**Code Standards:**
+- Write tests for new features
+- Follow existing code style
+- Update documentation
+- Ensure all tests pass
 
 ---
 
@@ -394,28 +581,53 @@ ISC License - see LICENSE file for details
 
 ---
 
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
----
-
 ## 📧 Contact
 
-For questions or support, please open an issue on GitHub.
+For questions or support:
+- Open an issue on GitHub
+- Email: [Your Email]
+- Website: [Your Website]
 
 ---
 
 ## 🙏 Acknowledgments
 
-- **Chart.js** - Beautiful charts for analytics
-- **Bootstrap** - Responsive UI framework
-- **Font Awesome** - Icon library
-- **Supabase** - PostgreSQL hosting
-- **Cloudinary** - File storage
-- **Render** - Backend hosting
-- **HuggingFace** - AI/ML models
+**Technologies:**
+- [Node.js](https://nodejs.org/) - JavaScript runtime
+- [Express.js](https://expressjs.com/) - Web framework
+- [PostgreSQL](https://www.postgresql.org/) - Database
+- [Supabase](https://supabase.com/) - Database hosting
+- [Cloudinary](https://cloudinary.com/) - File storage
+- [Winston](https://github.com/winstonjs/winston) - Logging
+- [Jest](https://jestjs.io/) - Testing framework
+
+**UI Libraries:**
+- [Bootstrap](https://getbootstrap.com/) - CSS framework
+- [Chart.js](https://www.chartjs.org/) - Charts
+- [Font Awesome](https://fontawesome.com/) - Icons
+
+**AI/ML:**
+- [HuggingFace](https://huggingface.co/) - AI models
+
+**Hosting:**
+- [Render](https://render.com/) - Backend
+- [Netlify](https://www.netlify.com/) - Frontend
 
 ---
 
-**Built with ❤️ for book lovers**
+## 🏆 Project Stats
+
+- **Lines of Code**: ~15,000+
+- **Test Coverage**: 31 tests passing
+- **File Upload Security**: ✅ MIME + Extension validation
+- **Logging**: ✅ Structured with Winston
+- **Authentication**: ✅ Passport.js + bcrypt
+- **Database**: ✅ PostgreSQL with connection pooling
+- **Real-time Analytics**: ✅ Admin dashboard
+- **AI Recommendations**: ✅ HuggingFace integration
+
+---
+
+**Built with ❤️ for book lovers and developers**
+
+**Happy coding! 🚀**
