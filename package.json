@@ -70,7 +70,8 @@
       "**/__tests__/**/*.test.js",
       "**/?(*.)+(spec|test).js"
     ],
-    "testTimeout": 10000
+    "testTimeout": 10000,
+    "setupFilesAfterEnv": ["./jest.setup.js"]
   },
   "devDependencies": {
     "@eslint/js": "^9.29.0",
