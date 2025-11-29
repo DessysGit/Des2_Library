@@ -1,34 +1,48 @@
-/my-library
+# Dependencies
 /node_modules
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Database files
+*.db
+*.sqlite
+library.db
+sessions.sqlite
+
+# Logs
+/logs
+*.log
+npm-debug.log*
+
+# Testing
+/coverage
+.nyc_output
+
+# Uploads
 /uploads
+
+# Build files
+/dist
+/build
+
+# IDE
+/.vscode
+.vscode/settings.json
+/.vs
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
 eslint-report.txt
 eslint.config.mjs
-package-lock.json
-package.json
-package.json
-package-lock.json
-package-lock.json
-package.json
-package-lock.json
-package.json
-*.json
-.env.example
-sessions.sqlite
-library.db
-sessions.sqlite
-.vscode/settings.json
-.env.example
-*.example
-/.vscode
-library.db
-sessions.sqlite
-*.sql
-*.example
-*.db
-*.example
-*.example
-*.db
-*.example
-*.db
-.env
 FINAL_YEAR_PROJECT_ENHANCEMENTS.md
+/my-library
+
+# Keep example files (don't ignore these)
+!.env.example
