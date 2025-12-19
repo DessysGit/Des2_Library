@@ -1,27 +1,27 @@
-# 📚 Des2 Library Management System
+# Des2 Library Management System
 
-A modern, full-stack library management application with AI-powered recommendations, real-time analytics dashboard, structured logging, and automated testing.
+A modern, full-stack library management application with AI-powered recommendations, real-time analytics dashboard, structured logging, and comprehensive automated testing.
 
 ![Node.js](https://img.shields.io/badge/Node.js-v18+-green)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-13+-blue)
-![Tests](https://img.shields.io/badge/tests-31%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-passing-brightgreen)
 ![License](https://img.shields.io/badge/license-ISC-orange)
 
 ---
 
-## 🌟 Features
+## Features
 
 ### For Users
-- 📖 **Browse & Search Books** - Advanced search by title, author, and genre
-- ⭐ **Review & Rate** - Share your thoughts and rate books 1-5 stars
-- 🤖 **AI Recommendations** - Get personalized book suggestions powered by HuggingFace
-- 💬 **Chatbot Assistant** - Interactive helper for finding books and getting recommendations
-- 📥 **Download Books** - Access PDF versions of books (stored in Cloudinary)
-- 📧 **Email Verification** - Secure account with email verification system
-- 🔐 **Password Reset** - Easy password recovery via email
+- **Browse & Search Books** - Advanced search by title, author, and genre
+- **Review & Rate** - Share your thoughts and rate books 1-5 stars
+- **AI Recommendations** - Get personalized book suggestions powered by HuggingFace
+- **Chatbot Assistant** - Interactive helper for finding books and getting recommendations
+- **Download Books** - Access PDF versions of books (stored in Cloudinary)
+- **Email Verification** - Secure account with email verification system
+- **Password Reset** - Easy password recovery via email
 
 ### For Admins
-- 📊 **Analytics Dashboard** - Real-time statistics and insights
+- **Analytics Dashboard** - Real-time statistics and insights
   - Total users, books, reviews, and downloads
   - Genre distribution charts
   - User growth trends (30-day view)
@@ -29,30 +29,35 @@ A modern, full-stack library management application with AI-powered recommendati
   - Recent activity feed
   - Top reviewers leaderboard
   - Books needing reviews
-- 📚 **Book Management** - Full CRUD operations for books
-- 👥 **User Management** - View and manage user accounts
-- ☁️ **Cloud Storage** - Automatic file upload to Cloudinary
+- **Book Management** - Full CRUD operations for books
+- **User Management** - View and manage user accounts
+- **Cloud Storage** - Automatic file upload to Cloudinary
 
 ### Developer Features
-- 🧪 **Automated Testing** - 31 unit and integration tests with Jest
-- 📝 **Structured Logging** - Winston logger with file rotation and log levels
-- 🔒 **Secure File Uploads** - MIME type + extension validation, size limits, filename sanitization
-- ⚙️ **Environment-based Config** - No hardcoded values, production safety checks
-- 🛡️ **Security Hardened** - Input validation, rate limiting, session management
+- **Automated Testing** - Comprehensive test suite with Jest
+  - 8 middleware authentication tests
+  - 23 file validation utility tests
+  - 16 authentication route integration tests
+  - Full test coverage for critical security functions
+- **Structured Logging** - Winston logger with file rotation and log levels
+- **Secure File Uploads** - MIME type + extension validation, size limits, filename sanitization
+- **Environment-based Config** - No hardcoded values, production safety checks
+- **Security Hardened** - Input validation, rate limiting, session management
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Backend
-- **Runtime**: Node.js (Express.js)
+- **Runtime**: Node.js (Express.js v5.1.0)
 - **Database**: PostgreSQL (Supabase)
 - **Authentication**: Passport.js, bcrypt
 - **Session Management**: express-session, connect-pg-simple
 - **File Upload**: Multer, Cloudinary
-- **Email**: Resend / Gmail SMTP / SendGrid
+- **Email**: Resend / Gmail SMTP / SendGrid / Brevo
 - **Logging**: Winston (structured logging)
 - **Testing**: Jest, Supertest
+- **Validation**: express-validator
 
 ### Frontend
 - **UI**: Vanilla JavaScript, HTML5, CSS3
@@ -73,13 +78,13 @@ A modern, full-stack library management application with AI-powered recommendati
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Node.js v18 or higher
 - PostgreSQL database (Supabase recommended)
 - Cloudinary account (for file uploads)
-- Email service account (Resend/Gmail/SendGrid)
+- Email service account (Resend/Gmail/SendGrid/Brevo)
 
 ### Installation
 
@@ -153,7 +158,7 @@ npm run dev
 
 ---
 
-## 📋 Available Scripts
+## Available Scripts
 
 ### Development
 - `npm start` - Start production server
@@ -167,14 +172,18 @@ npm run dev
 ### Database
 - `npm run test:connection` - Test database connection
 - `npm run diagnose` - Run connection diagnostics
+- `npm run migrate` - Run database migrations
+- `npm run add-indexes` - Add database indexes for performance
 
-### Other
+### Utilities
 - `npm run test-email` - Test email service
 - `npm run test-dashboard` - Test analytics endpoints
+- `npm run verify-production` - Verify production configuration
+- `npm run fix-cloudinary` - Fix Cloudinary URLs
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 Library_Project/
@@ -199,7 +208,8 @@ Library_Project/
 │   │   ├── recommendations.js   # AI recommendations
 │   │   ├── chatbot.js           # Chatbot responses
 │   │   ├── download.js          # File downloads
-│   │   └── newsletter.js        # Email subscriptions
+│   │   ├── newsletter.js        # Email subscriptions
+│   │   └── __tests__/           # Route integration tests
 │   ├── services/
 │   │   ├── emailService.js      # Email sending
 │   │   └── databaseService.js   # Database utilities
@@ -217,20 +227,23 @@ Library_Project/
 │   ├── admin-dashboard.js       # Dashboard logic
 │   ├── style.css                # Global styles
 │   └── chatbot/                 # Chatbot interface
+├── migrations/                  # Database migration scripts
 ├── logs/                        # Log files (auto-generated)
 ├── uploads/                     # Local file storage (dev only)
 ├── coverage/                    # Test coverage reports
 ├── server.js                    # Application entry point
 ├── recommend.py                 # Python recommendation script
+├── requirements.txt             # Python dependencies
 ├── .env.example                 # Environment template
+├── jest.setup.js                # Jest configuration
 └── package.json
 ```
 
 ---
 
-## 🧪 Testing
+## Testing
 
-This project includes automated testing with Jest:
+This project includes comprehensive automated testing with Jest:
 
 ```bash
 # Run all tests
@@ -244,9 +257,20 @@ npm run test:coverage
 ```
 
 **Test Coverage:**
-- ✅ Authentication middleware (8 tests)
-- ✅ File validation utilities (23 tests)
-- **Total: 31 tests passing**
+- Authentication middleware (8 tests)
+  - User authentication checks
+  - Admin authorization
+  - Seed admin verification
+- File validation utilities (23 tests)
+  - Filename sanitization
+  - File type validation
+  - Size limit enforcement
+  - Security checks
+- Authentication routes (16 tests)
+  - User registration
+  - Login/logout
+  - Email verification
+  - Password validation
 
 ### Writing Tests
 
@@ -271,7 +295,7 @@ it('should authenticate admin user', () => {
 
 ---
 
-## 📝 Logging
+## Logging
 
 The application uses Winston for structured logging:
 
@@ -304,7 +328,7 @@ LOG_SQL_QUERIES=true              # Log database queries (debug only)
 
 ---
 
-## 🔒 Security Features
+## Security Features
 
 ### File Upload Security
 - **MIME type validation** - Checks actual file type, not just extension
@@ -333,7 +357,7 @@ LOG_SQL_QUERIES=true              # Log database queries (debug only)
 
 ---
 
-## 🎯 Key Features Explained
+## Key Features Explained
 
 ### 1. Admin Analytics Dashboard
 Real-time insights with interactive visualizations:
@@ -350,15 +374,19 @@ Multiple recommendation strategies:
 - **Python fallback**: Local recommendation script
 
 ### 3. Email System
-Flexible email service with multiple options:
+Flexible email service with multiple provider options:
 - **Verification emails**: Secure account activation
 - **Password reset**: Token-based recovery
 - **Templates**: Beautiful HTML email templates
-- **Multi-provider**: Resend, Gmail, SendGrid support
+- **Multi-provider support**: 
+  - Resend (recommended, 3,000 emails/month free)
+  - Gmail SMTP (100% free with app password)
+  - SendGrid (100 emails/day free)
+  - Brevo (300 emails/day free)
 
 ---
 
-## 🔧 Configuration
+## Configuration
 
 ### Database Setup (Supabase)
 
@@ -393,7 +421,13 @@ Tables are created automatically on first run.
 - Generate App Password: https://myaccount.google.com/apppasswords
 - Add `GMAIL_USER` and `GMAIL_APP_PASSWORD` to `.env`
 
-**Option 3: SendGrid**
+**Option 3: Brevo (formerly Sendinblue)**
+- Free tier: 300 emails/day
+- Sign up: https://www.brevo.com
+- Create API key
+- Add `BREVO_API_KEY` to `.env`
+
+**Option 4: SendGrid**
 - Free tier: 100 emails/day
 - Sign up: https://sendgrid.com
 - Create API key
@@ -401,18 +435,18 @@ Tables are created automatically on first run.
 
 ---
 
-## 👥 Default Admin Account
+## Default Admin Account
 
 **Username**: Set in `.env` (`ADMIN_USERNAME`, default: `admin`)  
 **Password**: Set in `.env` (`ADMIN_PASSWORD`)
 
-⚠️ **Important:** Change the default password before deployment!
+**Important:** Change the default password before deployment!
 
 The admin account is created automatically on first server start.
 
 ---
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Database Connection Issues
 
@@ -472,14 +506,14 @@ npm test -- auth.test.js
 - Database connection failed
 - Port already in use
 
-**Check logs** for specific error messages.
+Check logs for specific error messages.
 
 ---
 
-## 📊 Analytics Dashboard Access
+## Analytics Dashboard Access
 
 1. Login as admin
-2. Click hamburger menu (☰)
+2. Click hamburger menu
 3. Select "Analytics Dashboard"
 4. View real-time statistics and charts
 
@@ -494,7 +528,7 @@ npm test -- auth.test.js
 
 ---
 
-## 🚢 Deployment
+## Deployment
 
 ### Backend (Render)
 
@@ -532,29 +566,29 @@ npm test -- auth.test.js
 - `LOG_LEVEL=info`
 - `HUGGINGFACE_API_KEY`
 
-⚠️ **Security:** Never use default passwords or secrets in production!
+**Security:** Never use default passwords or secrets in production!
 
 ---
 
-## 📈 Future Enhancements
+## Future Enhancements
 
 Potential features to add:
-- [ ] Book borrowing system with due dates
-- [ ] Advanced search with filters
-- [ ] Progressive Web App (PWA)
-- [ ] Download tracking and analytics
-- [ ] Reading lists/collections
-- [ ] Social sharing features
-- [ ] Discussion forums
-- [ ] Mobile app (React Native/Flutter)
-- [ ] Book reservations
-- [ ] Fine management system
-- [ ] Multi-language support
-- [ ] Dark mode
+- Book borrowing system with due dates
+- Advanced search with filters
+- Progressive Web App (PWA)
+- Download tracking and analytics
+- Reading lists/collections
+- Social sharing features
+- Discussion forums
+- Mobile app (React Native/Flutter)
+- Book reservations
+- Fine management system
+- Multi-language support
+- Dark mode
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please follow these steps:
 
@@ -575,13 +609,13 @@ Contributions are welcome! Please follow these steps:
 
 ---
 
-## 📝 License
+## License
 
 ISC License - see LICENSE file for details
 
 ---
 
-## 📧 Contact
+## Contact
 
 For questions or support:
 - Open an issue on GitHub
@@ -590,7 +624,7 @@ For questions or support:
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 **Technologies:**
 - [Node.js](https://nodejs.org/) - JavaScript runtime
@@ -615,19 +649,17 @@ For questions or support:
 
 ---
 
-## 🏆 Project Stats
+## Project Stats
 
 - **Lines of Code**: ~15,000+
-- **Test Coverage**: 31 tests passing
-- **File Upload Security**: ✅ MIME + Extension validation
-- **Logging**: ✅ Structured with Winston
-- **Authentication**: ✅ Passport.js + bcrypt
-- **Database**: ✅ PostgreSQL with connection pooling
-- **Real-time Analytics**: ✅ Admin dashboard
-- **AI Recommendations**: ✅ HuggingFace integration
+- **Test Coverage**: 47 tests across 3 test suites
+- **File Upload Security**: MIME + Extension validation
+- **Logging**: Structured with Winston
+- **Authentication**: Passport.js + bcrypt
+- **Database**: PostgreSQL with connection pooling
+- **Real-time Analytics**: Admin dashboard
+- **AI Recommendations**: HuggingFace integration
 
 ---
 
-**Built with ❤️ for book lovers and developers**
-
-**Happy coding! 🚀**
+**Built with care for book lovers and developers**
