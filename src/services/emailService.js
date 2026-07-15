@@ -99,7 +99,7 @@ function createVerificationEmailTemplate(verificationUrl, username = 'User') {
       </div>
       <div style="margin-top: 40px; text-align: center; font-size: 14px; color: #666;">
         <p>If you didn't create an account, please ignore this email.</p>
-        <p>&copy; 2025 Des2 Library. All rights reserved.</p>
+        <p>&copy; 2026 Des2 Library. All rights reserved.</p>
       </div>
     </div>
   </body>
@@ -181,7 +181,7 @@ function createPasswordResetEmailTemplate(resetUrl, username = 'User') {
         <p>If you didn't request a password reset, you can safely ignore this email.</p>
       </div>
       <div style="margin-top: 40px; text-align: center; font-size: 14px; color: #666;">
-        <p>&copy; 2025 Des2 Library. All rights reserved.</p>
+        <p>&copy; 2026 Des2 Library. All rights reserved.</p>
       </div>
     </div>
   </body>
