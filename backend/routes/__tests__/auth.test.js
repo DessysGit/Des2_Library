@@ -58,7 +58,7 @@ describe('Authentication Routes', () => {
       });
       
       const response = await request(app)
-        .post('/register')
+        .post('/api/v1/register')
         .send(testUser);
       
       expect(response.status).toBe(201);
@@ -72,7 +72,7 @@ describe('Authentication Routes', () => {
       pool.query.mockResolvedValueOnce({ rows: [{ count: '1' }] });
       
       const response = await request(app)
-        .post('/register')
+        .post('/api/v1/register')
         .send(testUser);
       
       expect(response.status).toBe(400);
@@ -87,7 +87,7 @@ describe('Authentication Routes', () => {
       pool.query.mockResolvedValueOnce({ rows: [{ count: '1' }] });
       
       const response = await request(app)
-        .post('/register')
+        .post('/api/v1/register')
         .send(testUser);
       
       expect(response.status).toBe(400);
@@ -97,7 +97,7 @@ describe('Authentication Routes', () => {
     
     it('should reject registration with missing fields', async () => {
       const response = await request(app)
-        .post('/register')
+        .post('/api/v1/register')
         .send({
           username: 'testuser'
           // Missing email and password
@@ -109,7 +109,7 @@ describe('Authentication Routes', () => {
     
     it('should reject registration with invalid email', async () => {
       const response = await request(app)
-        .post('/register')
+        .post('/api/v1/register')
         .send({
           username: 'testuser',
           email: 'not-an-email',
@@ -122,7 +122,7 @@ describe('Authentication Routes', () => {
     
     it('should reject registration with short password', async () => {
       const response = await request(app)
-        .post('/register')
+        .post('/api/v1/register')
         .send({
           username: 'testuser',
           email: 'test@example.com',
@@ -164,7 +164,7 @@ describe('Authentication Routes', () => {
       });
       
       const response = await request(app)
-        .post('/login')
+        .post('/api/v1/login')
         .send({
           emailOrUsername: testUser.username,
           password: testUser.password
@@ -195,7 +195,7 @@ describe('Authentication Routes', () => {
       });
       
       const response = await request(app)
-        .post('/login')
+        .post('/api/v1/login')
         .send({
           emailOrUsername: testUser.username,
           password: testUser.password
@@ -223,7 +223,7 @@ describe('Authentication Routes', () => {
       });
       
       const response = await request(app)
-        .post('/login')
+        .post('/api/v1/login')
         .send({
           emailOrUsername: testUser.username,
           password: 'WrongPassword123!'
@@ -238,7 +238,7 @@ describe('Authentication Routes', () => {
       pool.query.mockResolvedValueOnce({ rows: [] });
       
       const response = await request(app)
-        .post('/login')
+        .post('/api/v1/login')
         .send({
           emailOrUsername: 'nonexistentuser',
           password: 'SomePassword123!'
@@ -249,7 +249,7 @@ describe('Authentication Routes', () => {
     
     it('should reject login with missing password', async () => {
       const response = await request(app)
-        .post('/login')
+        .post('/api/v1/login')
         .send({
           emailOrUsername: testUser.username
           // Missing password
@@ -263,31 +263,11 @@ describe('Authentication Routes', () => {
   describe('Authentication Status Check', () => {
     
     it('should handle authentication check gracefully', async () => {
-      // Try common auth check endpoints
-      const endpoints = ['/check-auth', '/auth/check', '/status'];
+      // Try the current-user endpoint with /api/v1 prefix
+      const response = await request(app).get('/api/v1/current-user');
       
-      // At least one should work or return a reasonable response
-      let foundWorkingEndpoint = false;
-      
-      for (const endpoint of endpoints) {
-        const response = await request(app).get(endpoint);
-        
-        // If we get 200 or 401, the endpoint exists
-        if (response.status === 200 || response.status === 401) {
-          foundWorkingEndpoint = true;
-          
-          if (response.status === 200) {
-            // Should have authenticated property
-            expect(response.body).toHaveProperty('authenticated');
-            expect(response.body.authenticated).toBe(false);
-          }
-          break;
-        }
-      }
-      
-      // If no working endpoint found, that's okay for this test
-      // Just verify we tried the common patterns
-      expect(endpoints.length).toBeGreaterThan(0);
+      // Should return 401 (not authenticated) or 200 (if session exists)
+      expect([200, 401]).toContain(response.status);
     });
     
   });
@@ -296,7 +276,7 @@ describe('Authentication Routes', () => {
     
     it('should allow logout even without session', async () => {
       const response = await request(app)
-        .post('/logout');
+        .post('/api/v1/logout');
       
       // Logout should succeed even without session
       expect([200, 401]).toContain(response.status);

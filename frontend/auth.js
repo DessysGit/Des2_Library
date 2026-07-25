@@ -5,11 +5,11 @@ const API_BASE_URL = (() => {
   const isNetlify = currentHost.includes('netlify.app');
   
   if (isLocalhost) {
-    return ''; // Same origin for local development
+    return '/api/v1'; // Same origin for local development
   } else if (isNetlify || window.location.protocol === 'https:') {
-    return 'https://library-backend-j90e.onrender.com';
+    return 'https://library-backend-j90e.onrender.com/api/v1';
   } else {
-    return 'https://library-backend-j90e.onrender.com';
+    return 'https://library-backend-j90e.onrender.com/api/v1';
   }
 })();
 

@@ -6,13 +6,13 @@ const API_BASE_URL = (() => {
   
   if (isLocalhost) {
     // Local development
-    return ''; // Same origin for local development
+    return '/api/v1'; // Same origin for local development
   } else if (isNetlify || window.location.protocol === 'https:') {
     // Production (Netlify or any HTTPS site)
-    return 'https://library-backend-j90e.onrender.com';
+    return 'https://library-backend-j90e.onrender.com/api/v1';
   } else {
     // Fallback to Render for HTTP sites
-    return 'https://library-backend-j90e.onrender.com';
+    return 'https://library-backend-j90e.onrender.com/api/v1';
   }
 })();
 

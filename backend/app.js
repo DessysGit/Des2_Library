@@ -188,23 +188,23 @@ const analyticsRoutes = require('./routes/analytics');        // Admin analytics
 /**
  * Route Registration
  * 
- * Base URL + Route Handler = Full Endpoint
+ * All routes are prefixed with /api/v1 for versioning
  * 
  * Examples:
- * '/' + authRoutes (/login) = POST /login
- * '/books' + booksRoutes (/) = GET /books
- * '/users' + usersRoutes (/profile) = GET /users/profile
+ * '/api/v1' + authRoutes (/login) = POST /api/v1/login
+ * '/api/v1/books' + booksRoutes (/) = GET /api/v1/books
+ * '/api/v1/users' + usersRoutes (/profile) = GET /api/v1/users/profile
  */
 
-app.use('/', authRoutes);                          // Auth endpoints at root level
-app.use('/books', booksRoutes);                    // Book endpoints: /books/*
-app.use('/books', reviewsRoutes);                  // Review endpoints: /books/:id/reviews
-app.use('/users', usersRoutes);                    // User endpoints: /users/*
-app.use('/recommendations', recommendationsRoutes); // Recommendation endpoints
-app.use('/', newsletterRoutes);                    // Newsletter at root level
-app.use('/download', downloadRoutes);              // Download endpoints: /download/*
-app.use('/api', chatbotRoutes);                    // Chatbot endpoints: /api/*
-app.use('/analytics', analyticsRoutes);            // Analytics endpoints: /analytics/*
+app.use('/api/v1', authRoutes);                          // Auth endpoints: /api/v1/*
+app.use('/api/v1/books', booksRoutes);                    // Book endpoints: /api/v1/books/*
+app.use('/api/v1/books', reviewsRoutes);                  // Review endpoints: /api/v1/books/:id/reviews
+app.use('/api/v1/users', usersRoutes);                    // User endpoints: /api/v1/users/*
+app.use('/api/v1/recommendations', recommendationsRoutes); // Recommendation endpoints: /api/v1/recommendations/*
+app.use('/api/v1/newsletter', newsletterRoutes);          // Newsletter endpoints: /api/v1/newsletter/*
+app.use('/api/v1/download', downloadRoutes);              // Download endpoints: /api/v1/download/*
+app.use('/api/v1/chatbot', chatbotRoutes);                // Chatbot endpoints: /api/v1/chatbot/*
+app.use('/api/v1/analytics', analyticsRoutes);            // Analytics endpoints: /api/v1/analytics/*
 
 // ============================================
 // HEALTH CHECK ENDPOINTS
