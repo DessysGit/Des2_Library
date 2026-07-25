@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# Crawl-delay for polite crawling
+Crawl-delay: 1
+
+# Sitemap location
+Sitemap: https://des2library.com/sitemap.xml
+
+# Block admin and auth pages from search engines
+Disallow: /admin-dashboard.html
+Disallow: /auth.html
+Disallow: /reset-password.html
