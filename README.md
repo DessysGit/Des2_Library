@@ -4,7 +4,7 @@ A modern, full-stack library management application with JWT-based cross-origin 
 
 ![Node.js](https://img.shields.io/badge/Node.js-v18+-green)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-13+-blue)
-![Tests](https://img.shields.io/badge/tests-44-blue)
+![Tests](https://img.shields.io/badge/tests-72-blue)
 ![License](https://img.shields.io/badge/license-ISC-orange)
 
 ---
@@ -75,8 +75,9 @@ A modern, full-stack library management application with JWT-based cross-origin 
 - **Toast Notification System** — Replaces all `alert()` / `confirm()` / `prompt()` dialogs
 - **Confirm Modal** — Styled dark-theme modal for all destructive actions
 - **Recommendation Caching** — In-memory cache (10 min TTL) reduces HuggingFace API calls
-- **Automated Testing** — 44 tests across 3 suites (Jest + Supertest)
+- **Automated Testing** — 72 tests across 6 suites (Jest + Supertest)
 - **Structured Logging** — Winston with file rotation and configurable log levels
+- **Database Migrations** — Knex.js migrations for schema version-control
 - **Secure File Uploads** — MIME + extension validation, size limits, filename sanitisation
 
 ---
@@ -85,7 +86,7 @@ A modern, full-stack library management application with JWT-based cross-origin 
 
 ### Backend
 - **Runtime**: Node.js (Express.js v5.1.0)
-- **Database**: PostgreSQL (Supabase)
+- **Database**: PostgreSQL (Supabase) + Knex.js migrations
 - **Authentication**: Passport.js (sessions) + JSON Web Tokens (cross-origin)
 - **Session Management**: express-session, connect-pg-simple
 - **File Upload**: Multer (memory storage)
@@ -304,9 +305,9 @@ Requires Python 3 with `flask`, `pandas`, `scikit-learn`, and `psycopg2-binary`.
 
 ```
 Library_Project/
-├── src/
+├── backend/
 │   ├── config/
-│   │   ├── database.js              # PostgreSQL connection pool
+│   │   ├── database.js              # PostgreSQL connection pool & Knex migrations boot
 │   │   ├── cloudinary.js            # Cloudinary client (image storage)
 │   │   ├── googleCloudStorage.js    # GCS client (PDF storage)
 │   │   ├── environment.js           # Centralised environment config
@@ -317,6 +318,8 @@ Library_Project/
 │   │   ├── rateLimiter.js           # Login rate limiting
 │   │   ├── requestLogger.js         # HTTP request logging
 │   │   └── __tests__/
+│   ├── migrations/                  # Knex.js migrations
+│   │   └── 20260725120000_create_initial_schema.js
 │   ├── routes/
 │   │   ├── auth.js                  # Login, register, JWT issuance, password reset
 │   │   ├── books.js                 # Book CRUD, GCS/Cloudinary upload
@@ -336,19 +339,23 @@ Library_Project/
 │   │   ├── testHelpers.js           # Jest mocks for request/response/user
 │   │   ├── helpers.js               # General utility functions (formatDate, truncate, etc.)
 │   │   └── __tests__/
-│   └── app.js                       # Express app, CORS, sessions, CSP middleware
-├── public/
-│   ├── auth.html / auth.js          # Standalone login + register page
-│   ├── index.html / script.js       # Main authenticated app
+│   ├── app.js                       # Express app, CORS, sessions, CSP/Helmet middleware
+│   └── server.js                    # Application entry point
+├── frontend/
+│   ├── auth.html / auth.js          # Standalone login + register page with SEO meta tags
+│   ├── index.html / script.js       # Main authenticated app (pre-rendered with book data)
 │   ├── admin-dashboard.html/.js     # Analytics dashboard (admin only)
 │   ├── book-details.html            # Book details + download + reviews
 │   ├── reset-password.html          # Password reset landing page
 │   ├── style.css                    # Global dark-theme styles
+│   ├── robots.txt                   # Crawler guidelines
+│   ├── sitemap.xml                  # XML sitemap for SEO
+│   ├── structured-data.js           # JSON-LD Schema markup generator
 │   └── chatbot/                     # Chatbot widget (chat.js, chat.css)
 ├── logs/                            # Winston log files (auto-generated)
 ├── uploads/                         # Local file storage (dev only)
 ├── subscribers.txt                  # Newsletter subscription list
-├── server.js                        # Application entry point
+├── knexfile.js                      # Knex.js config file
 ├── recommend.py                     # Python recommendation script
 ├── requirements.txt                 # Python dependencies
 ├── .env.example                     # Environment template
@@ -581,13 +588,16 @@ npm run add-indexes                    # Add database indexes
 
 ## Testing
 
-44 automated tests across 3 suites:
+72 automated tests across 6 suites:
 
 | Suite | Tests | What it covers |
 |---|---|---|
 | Middleware auth | 8 | isAuthenticated, isAdmin, isSeedAdmin, optionalAuth |
 | File validation | 23 | MIME types, extensions, size limits, filename sanitisation |
 | Auth routes | 13 | Register, login, logout, email verification, password validation |
+| Book routes | 11 | Books fetch, search, filters, like, dislike, deletion, validation |
+| User routes | 10 | Listing, profiles, permissions, admin controls |
+| Review routes | 7 | List reviews, rating verification, database error handling |
 
 ```bash
 npm test
@@ -599,8 +609,8 @@ npm run test:coverage
 Use the test helpers for easier test creation:
 
 ```javascript
-const { mockRequest, mockResponse, mockUser } = require('./src/utils/testHelpers');
-const { isAdmin } = require('./src/middleware/auth');
+const { mockRequest, mockResponse, mockUser } = require('./backend/utils/testHelpers');
+const { isAdmin } = require('./backend/middleware/auth');
 
 it('should authenticate admin user', () => {
   const req = mockRequest({
