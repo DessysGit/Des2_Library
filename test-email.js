@@ -6,7 +6,7 @@
  */
 
 require('dotenv').config();
-const { sendVerificationEmail } = require('./src/services/emailService');
+const { sendVerificationEmail } = require('./backend/services/emailService');
 
 const testEmail = process.argv[2];
 

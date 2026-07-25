@@ -24,7 +24,7 @@ global.console = {
 afterAll(async () => {
   // Close any open database connections
   try {
-    const { closePool } = require('../src/config/database');
+    const { closePool } = require('../backend/config/database');
     await closePool();
   } catch (error) {
     // Ignore if database module doesn't exist

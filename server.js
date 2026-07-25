@@ -8,7 +8,7 @@
  * 4. Seeding the admin user
  * 5. Starting the Express server
  * 
- * The actual Express app configuration is in src/app.js
+ * The actual Express app configuration is in backend/app.js
  */
 
 // Load environment variables from .env file (quietly)
@@ -17,7 +17,7 @@ require('dotenv').config({ quiet: true });
 // Try to load logger, fallback to console if winston not installed
 let logger;
 try {
-  logger = require('./src/config/logger');
+  logger = require('./backend/config/logger');
 } catch (error) {
   console.log('⚠️  Winston not installed, using console logging');
   console.log('💡 Run "npm install winston" to enable structured logging');
@@ -31,16 +31,16 @@ try {
 }
 
 // Import the Express application
-const app = require('./src/app');
+const app = require('./backend/app');
 
 // Import database functions
-const { testConnection, ensureTables, closePool } = require('./src/config/database');
+const { testConnection, ensureTables, closePool } = require('./backend/config/database');
 
 // Import service functions
-const { seedAdmin, recalculateAverageRatings } = require('./src/services/databaseService');
+const { seedAdmin, recalculateAverageRatings } = require('./backend/services/databaseService');
 
 // Get port from environment variables
-const { PORT } = require('./src/config/environment');
+const { PORT } = require('./backend/config/environment');
 
 // Track if server is already started
 let serverStarted = false;

@@ -142,7 +142,7 @@ app.use(passport.session());
 // ============================================
 
 // Serve frontend files (HTML, CSS, JS)
-app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.static(path.join(__dirname, '../frontend')));
 
 // Serve uploaded files in development only
 if (isDevelopment) {
