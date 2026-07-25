@@ -16,6 +16,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const session = require('express-session');
 const path = require('path');
+const fs = require('fs');
 const PgSession = require('connect-pg-simple')(session);
 
 // ============================================
@@ -211,6 +212,42 @@ app.use('/api/v1/newsletter', newsletterRoutes);          // Newsletter endpoint
 app.use('/api/v1/download', downloadRoutes);              // Download endpoints: /api/v1/download/*
 app.use('/api/v1/chatbot', chatbotRoutes);                // Chatbot endpoints: /api/v1/chatbot/*
 app.use('/api/v1/analytics', analyticsRoutes);            // Analytics endpoints: /api/v1/analytics/*
+
+// ============================================
+// PRE-RENDERED HOMEPAGE FOR SEO/CRAWLERS
+// ============================================
+
+/**
+ * Serves the homepage with pre-rendered book data so crawlers
+ * see actual book listings without executing JavaScript.
+ */
+app.get('/', async (req, res) => {
+  try {
+    let html = await fs.promises.readFile(path.join(__dirname, '../frontend/index.html'), 'utf8');
+
+    // Fetch first page of books
+    const limit = 12;
+    const result = await pool.query(
+      'SELECT id, title, author, cover, averagerating, likes, dislikes FROM books ORDER BY title LIMIT $1',
+      [limit]
+    );
+    const books = result.rows.map(book => ({
+      ...book,
+      averageRating: parseFloat(book.averagerating) || 0
+    }));
+
+    // Inject book data before closing </body>
+    const bookDataScript = `<script id="preloaded-books" type="application/json">${JSON.stringify({ books })}</script>`;
+    html = html.replace('</body>', `${bookDataScript}</body>`);
+
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    console.error('Error pre-rendering homepage:', error);
+    // Fallback to static file
+    res.sendFile(path.join(__dirname, '../frontend/index.html'));
+  }
+});
 
 // ============================================
 // HEALTH CHECK ENDPOINTS

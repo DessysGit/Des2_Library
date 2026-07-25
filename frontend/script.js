@@ -66,38 +66,109 @@ let userRole = "";
 
 // Ensure the necessary elements are hidden on initial load
 document.addEventListener('DOMContentLoaded', async () => {    
-    // Show loading state initially
-    showLoadingState();
+    // Check for pre-rendered books from server
+    const preloadedBooksEl = document.getElementById('preloaded-books');
+    let initialBooks = null;
+    if (preloadedBooksEl) {
+      try {
+        initialBooks = JSON.parse(preloadedBooksEl.textContent || '{}');
+      } catch (e) {
+        console.warn('Failed to parse preloaded books:', e);
+      }
+    }
     
-    // Hide all content initially to prevent flash
-    const allSections = document.querySelectorAll('#search-books, #newsletter-section, #footer, #main-content, #hamburger-button, #chat-icon');
-    allSections.forEach(el => {
-        if (el) el.style.display = 'none';
-    });
+    // If user is not authenticated, redirect to auth page
+    const authCheckPromise = checkAuthStatus();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Auth check timeout')), 10000)
+    );
     
+    let isAuthenticated = false;
     try {
-        // Check authentication status
-        const authCheckPromise = checkAuthStatus();
-        const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Auth check timeout')), 10000)
-        );
-
-        let isAuthenticated = false;
-        try {
-            isAuthenticated = await Promise.race([authCheckPromise, timeoutPromise]);
-        } catch (error) {
-            console.error('Auth check failed or timed out:', error);
-            isAuthenticated = false;
-        }
-        
-        // Hide loading state
-        hideLoadingState();
-        
-        if (!isAuthenticated) {
-            // User is not authenticated - redirect to auth page immediately
-            window.location.replace('auth.html');
-            return;
-        }
+      isAuthenticated = await Promise.race([authCheckPromise, timeoutPromise]);
+    } catch (error) {
+      console.error('Auth check failed or timed out:', error);
+      isAuthenticated = false;
+    }
+    
+    if (!isAuthenticated) {
+      window.location.replace('auth.html');
+      return;
+    }
+    
+    // User is authenticated - show main app
+    const hamburgerButton = document.getElementById('hamburger-button');
+    const searchBooksSection = document.getElementById('search-books');
+    const newsletterSection = document.getElementById('newsletter-section');
+    const mainContent = document.getElementById('main-content');
+    const footer = document.getElementById('footer');
+    const chatIcon = document.getElementById('chat-icon');
+    
+    if (hamburgerButton) hamburgerButton.style.display = 'block';
+    if (searchBooksSection) searchBooksSection.style.display = 'block';
+    if (newsletterSection) newsletterSection.style.display = 'block';
+    if (mainContent) mainContent.style.display = 'block';
+    if (footer) footer.style.display = 'block';
+    if (chatIcon) chatIcon.style.display = 'block';
+    
+    // If we have pre-loaded books, render them immediately
+    if (initialBooks && initialBooks.books && initialBooks.books.length > 0) {
+      const bookList = document.getElementById('book-list');
+      const noResultsMessage = document.getElementById('no-results-message');
+      if (bookList) {
+        bookList.innerHTML = '';
+        initialBooks.books.forEach(book => {
+          let coverUrl = book.cover || '';
+          if (coverUrl && coverUrl.startsWith('/uploads/')) coverUrl = window.location.origin + coverUrl;
+          
+          const bookItem = document.createElement('div');
+          bookItem.classList.add('book-item');
+          bookItem.id = `book-${book.id}`;
+          bookItem.innerHTML = `
+            ${userRole === 'admin' ? `
+              <div class="delete-action">
+                <button class="btn btn-danger btn-sm" onclick="confirmDeleteBook(${book.id}, '${(book.title || '').replace(/'/g, "\\'")}')">Delete</button>
+              </div>
+            ` : ''}
+            <img src="${coverUrl || '/default-book-cover.png'}" alt="Cover Image" onerror="this.src='/default-book-cover.png'">
+            <div class="details">
+              <div class="details-content">
+                <div class="main-info">
+                  <h5>${book.title || 'No Title'}</h5>
+                  <p><strong>Author: </strong> ${book.author || 'Unknown'}</p>
+                  <p class="description-text" title="${book.description || ''}">${book.description || 'No description available'}</p>
+                </div>
+              </div>
+              <div class="like-dislike-ratings">
+                <div class="like-dislike-buttons">
+                  <button class="like-button" onclick="handleLikeDislike(${book.id}, 'like')">👍 ${book.likes || 0}</button>
+                  <button class="dislike-button" onclick="handleLikeDislike(${book.id}, 'dislike')">👎 ${book.dislikes || 0}</button>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="showBookDetails(${book.id})">Download</button>
+                <div class="ratings">
+                  <span><i class="fas fa-star text-warning"></i> ${book.averageRating ? book.averageRating.toFixed(1) : 'N/A'} (${book.totalRatings || 0} ratings)</span>
+                </div>
+              </div>
+            </div>
+          `;
+          bookList.appendChild(bookItem);
+          updateLikeDislikeUI(book.id, book.likes || 0, book.dislikes || 0, getUserAction(book.id));
+        });
+        if (noResultsMessage) noResultsMessage.style.display = 'none';
+      }
+    } else {
+      // No pre-loaded data, fetch books normally
+      if (searchBooksSection) searchBooksSection.style.display = 'block';
+      try {
+        await fetchBooks();
+      } catch (error) {
+        console.error('Error fetching books:', error);
+      }
+    }
+    
+    // Set up the outside click listener for the sidebar
+    setupOutsideClickListener();
+});
         
         // User is authenticated - show main app
         const hamburgerButton = document.getElementById('hamburger-button');
