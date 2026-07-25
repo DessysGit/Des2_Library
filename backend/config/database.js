@@ -9,6 +9,12 @@
  */
 
 const { Pool } = require('pg');
+const knex = require('knex');
+const { isProduction } = require('./environment');
+const knexfile = require('../../knexfile');
+
+const knexEnv = isProduction ? 'production' : (process.env.NODE_ENV === 'test' ? 'test' : 'development');
+const dbKnex = knex(knexfile[knexEnv]);
 
 // Import logger
 let logger;
@@ -110,7 +116,7 @@ async function testConnection() {
 }
 
 // ============================================
-// TABLE CREATION
+// TABLE CREATION & MIGRATIONS
 // ============================================
 
 async function ensureTables() {
@@ -118,92 +124,18 @@ async function ensureTables() {
   let retries = 0;
   
   while (retries < maxRetries) {
-    let client;
     try {
-      // Use direct pool for DDL operations
-      client = await directPool.connect();
-      
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS users (
-          id SERIAL PRIMARY KEY,
-          username TEXT UNIQUE NOT NULL,
-          email TEXT UNIQUE NOT NULL,
-          password TEXT NOT NULL,
-          role TEXT NOT NULL DEFAULT 'user',
-          "profilePicture" TEXT DEFAULT '',
-          "favoriteGenres" TEXT DEFAULT '',
-          "favoriteAuthors" TEXT DEFAULT '',
-          "favoriteBooks" TEXT DEFAULT '',
-          "isEmailVerified" BOOLEAN DEFAULT FALSE,
-          "emailVerificationToken" TEXT,
-          "emailVerificationExpires" TIMESTAMP,
-          "passwordResetToken" TEXT,
-          "passwordResetExpires" TIMESTAMP,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-      
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS books (
-          id SERIAL PRIMARY KEY,
-          title TEXT,
-          author TEXT,
-          description TEXT,
-          genres TEXT,
-          cover TEXT,
-          file TEXT,
-          likes INTEGER DEFAULT 0,
-          dislikes INTEGER DEFAULT 0,
-          summary TEXT,
-          averagerating FLOAT DEFAULT 0
-        )
-      `);
-      
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS likes (
-          id SERIAL PRIMARY KEY,
-          "userId" INTEGER,
-          "bookId" INTEGER,
-          action TEXT,
-          UNIQUE("userId", "bookId")
-        )
-      `);
-      
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS reviews (
-          id SERIAL PRIMARY KEY,
-          "bookId" INTEGER,
-          "userId" INTEGER,
-          username TEXT,
-          text TEXT,
-          rating INTEGER
-        )
-      `);
-      
-      client.release();
+      logger.info('Running database migrations via Knex...');
+      await dbKnex.migrate.latest();
+      logger.info('Database migrations completed successfully');
       return;
-      
     } catch (err) {
-      if (client) {
-        try { 
-          client.release(true);
-        } catch (e) { 
-          // Ignore release errors
-        }
-      }
-      
       retries++;
-      logger.error('Table creation failed', { 
+      logger.error('Database migration failed', { 
         attempt: retries, 
         maxRetries, 
         error: err.message 
       });
-      
-      // If it's a "relation already exists" error, that's actually fine
-      if (err.message.includes('already exists')) {
-        logger.info('Database tables already exist');
-        return;
-      }
       
       if (retries === maxRetries) {
         throw err;
@@ -226,7 +158,8 @@ async function closePool() {
     logger.info('Closing database connections');
     await Promise.all([
       pool.end(),
-      directPool.end()
+      directPool.end(),
+      dbKnex.destroy()
     ]);
     logger.info('Database connections closed successfully');
   } catch (err) {
@@ -256,6 +189,7 @@ process.on('SIGTERM', async () => {
 module.exports = {
   pool,
   directPool,
+  dbKnex,
   testConnection,
   ensureTables,
   closePool

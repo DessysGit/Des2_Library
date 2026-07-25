@@ -18,7 +18,9 @@
     "test-email": "node test-email.js",
     "test-dashboard": "node test-dashboard.js",
     "add-timestamps": "node add-timestamps.js",
-    "migrate": "node migrations/add-created-at-to-public-users.js",
+    "migrate": "knex migrate:latest",
+    "migrate:rollback": "knex migrate:rollback",
+    "migrate:make": "knex migrate:make",
     "migrate:old": "node migrations/run-migrations.js",
     "migrate:single": "node migrations/add-created-at-column.js",
     "add-indexes": "node add-indexes.js"
@@ -47,6 +49,7 @@
     "helmet": "^8.3.0",
     "install": "^0.13.0",
     "jsonwebtoken": "^9.0.2",
+    "knex": "^3.3.0",
     "multer": "^2.1.1",
     "node-fetch": "^3.3.2",
     "nodemailer": "^9.0.3",
