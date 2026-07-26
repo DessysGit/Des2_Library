@@ -17,7 +17,7 @@ require('dotenv').config({ quiet: true });
 // Try to load logger, fallback to console if winston not installed
 let logger;
 try {
-  logger = require('./backend/config/logger');
+  logger = require('./config/logger');
 } catch (error) {
   console.log('⚠️  Winston not installed, using console logging');
   console.log('💡 Run "npm install winston" to enable structured logging');
@@ -31,16 +31,16 @@ try {
 }
 
 // Import the Express application
-const app = require('./backend/app');
+const app = require('./app');
 
 // Import database functions
-const { testConnection, ensureTables, closePool } = require('./backend/config/database');
+const { testConnection, ensureTables, closePool } = require('./config/database');
 
 // Import service functions
-const { seedAdmin, recalculateAverageRatings } = require('./backend/services/databaseService');
+const { seedAdmin, recalculateAverageRatings } = require('./services/databaseService');
 
 // Get port from environment variables
-const { PORT } = require('./backend/config/environment');
+const { PORT } = require('./config/environment');
 
 // Track if server is already started
 let serverStarted = false;
