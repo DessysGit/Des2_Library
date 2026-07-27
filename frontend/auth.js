@@ -165,7 +165,8 @@ function hideForgotPasswordForm() {
 }
 
 // Handle Login
-async function login() {
+async function login(event) {
+    if (event) event.preventDefault();
     const emailOrUsername = document.getElementById('login-email-username').value.trim();
     const password = document.getElementById('login-password').value;
     const loginButton = document.querySelector('#login-form .btn-primary');

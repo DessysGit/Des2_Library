@@ -166,6 +166,28 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
     
+    // Wire up hamburger button and sidebar links (replacing inline onclick for CSP compliance)
+    const hamburgerBtn = document.getElementById('hamburger-button');
+    if (hamburgerBtn) hamburgerBtn.addEventListener('click', toggleMenu);
+    
+    const sidebarCloseBtn = document.getElementById('sidebar-close-btn');
+    if (sidebarCloseBtn) sidebarCloseBtn.addEventListener('click', toggleMenu);
+    
+    const manageUsersLink = document.getElementById('manage-users-link');
+    if (manageUsersLink) manageUsersLink.addEventListener('click', (e) => { e.preventDefault(); showSection('admin-section'); });
+    
+    const addBookLink = document.getElementById('add-book-link');
+    if (addBookLink) addBookLink.addEventListener('click', (e) => { e.preventDefault(); showSection('add-book-section'); });
+    
+    const sidebarProfileLink = document.getElementById('sidebar-profile-link');
+    if (sidebarProfileLink) sidebarProfileLink.addEventListener('click', (e) => { e.preventDefault(); showSection('profile-section'); });
+    
+    const sidebarLogoutLink = document.getElementById('sidebar-logout-link');
+    if (sidebarLogoutLink) sidebarLogoutLink.addEventListener('click', (e) => { e.preventDefault(); logout(); });
+    
+    const footerLogout = document.getElementById('footer-logout');
+    if (footerLogout) footerLogout.addEventListener('click', (e) => { e.preventDefault(); logout(); });
+    
     // Set up the outside click listener for the sidebar
     setupOutsideClickListener();
 });
