@@ -188,11 +188,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Fetch books if on main page
         const titleInput = document.getElementById('search-title');
         if (titleInput) {
-            try {
-                await fetchBooks();
-            } catch (error) {
-                console.error('Error fetching books:', error);
-            }
+            fetchBooks().catch(error => console.error('Error fetching books:', error));
         }
         
     } catch (error) {

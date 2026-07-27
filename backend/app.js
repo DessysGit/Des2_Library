@@ -92,7 +92,9 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://stackpath.bootstrapcdn.com", "https://code.jquery.com", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
+      scriptSrcAttr: ["'self'", "'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://stackpath.bootstrapcdn.com", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
+      styleSrcAttr: ["'self'", "'unsafe-inline'"],
       fontSrc: ["'self'", "https://cdnjs.cloudflare.com", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:"],
       connectSrc: ["'self'", "https://library-backend-j90e.onrender.com", "https://stackpath.bootstrapcdn.com", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"]

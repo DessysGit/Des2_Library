@@ -36,11 +36,11 @@
     </header>
 
     <!-- Hamburger button for navigation -->
-    <button id="hamburger-button" class="hamburger" aria-label="Open navigation menu" onclick="toggleMenu()" style="display: none;">&#9776;</button>
+    <button id="hamburger-button" class="hamburger" aria-label="Open navigation menu" id="hamburger-menu-btn" style="display: none;">&#9776;</button>
 
     <!-- Sidebar menu -->
 <div id="sidebar" class="sidebar">
-    <a href="javascript:void(0)" class="closebtn" onclick="toggleMenu()">&times;</a>
+    <a href="#" class="closebtn" id="sidebar-close-btn">&times;</a>
     <div class="sidebar-header">
         <img id="burger-profile-picture" src="" alt="Profile Picture" loading="lazy" style="width: 80px; height: 80px; border-radius: 50%;">
         <p id="burger-username">Username</p>
@@ -55,16 +55,16 @@
         <a href="admin-dashboard.html" id="dashboard-link">
             <i class="fas fa-chart-line"></i> Analytics Dashboard
         </a>
-        <a href="javascript:void(0)" onclick="showSection('admin-section')" id="manage-users-link">
+        <a href="#" id="manage-users-link">
             <i class="fas fa-users"></i> Manage Users
         </a>
-        <a href="javascript:void(0)" onclick="showSection('add-book-section')" id="add-book-link">
+        <a href="#" id="add-book-link">
             <i class="fas fa-book"></i> Add Book
         </a>
     </div>
     
-    <a href="javascript:void(0)" onclick="showSection('profile-section')">User Profile</a>
-    <a href="javascript:void(0)" onclick="logout()">Logout</a>
+    <a href="#" id="sidebar-profile-link">User Profile</a>
+    <a href="#" id="sidebar-logout-link">Logout</a>
 </div>
 
     <!-- Main Content -->
@@ -498,7 +498,7 @@
                     <div class="col-md-4">
                         <h5>Quick Links</h5>
                         <ul class="list-unstyled">
-                            <li><a href="javascript:void(0)" onclick="logout()">Logout</a></li>
+                            <li><a href="#" id="footer-logout">Logout</a></li>
                         </ul>
                     </div>
                     <!-- Contact Section -->
