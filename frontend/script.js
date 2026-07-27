@@ -169,39 +169,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Set up the outside click listener for the sidebar
     setupOutsideClickListener();
 });
-        
-        // User is authenticated - show main app
-        const hamburgerButton = document.getElementById('hamburger-button');
-        const searchBooksSection = document.getElementById('search-books');
-        const newsletterSection = document.getElementById('newsletter-section');
-        const mainContent = document.getElementById('main-content');
-        const footer = document.getElementById('footer');
-        const chatIcon = document.getElementById('chat-icon');
-        
-        if (hamburgerButton) hamburgerButton.style.display = 'block';
-        if (searchBooksSection) searchBooksSection.style.display = 'block';
-        if (newsletterSection) newsletterSection.style.display = 'block';
-        if (mainContent) mainContent.style.display = 'block';
-        if (footer) footer.style.display = 'block';
-        if (chatIcon) chatIcon.style.display = 'block';
-        
-        // Fetch books if on main page
-        const titleInput = document.getElementById('search-title');
-        if (titleInput) {
-            fetchBooks().catch(error => console.error('Error fetching books:', error));
-        }
-        
-    } catch (error) {
-        console.error('Critical error during initialization:', error);
-        hideLoadingState();
-        // Redirect to auth page on error
-        window.location.replace('auth.html');
-        return;
-    }
-
-    // Set up the outside click listener for the sidebar
-    setupOutsideClickListener();
-});
 
 // Function to show loading spinner on button
 function showButtonSpinner(buttonElement, originalText) {
