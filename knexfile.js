@@ -14,7 +14,7 @@ module.exports = {
         : false,
     },
     migrations: {
-      directory: './backend/migrations',
+      directory: './migrations',
     },
   },
   production: {
@@ -24,7 +24,7 @@ module.exports = {
       ssl: { rejectUnauthorized: false },
     },
     migrations: {
-      directory: './backend/migrations',
+      directory: './migrations',
     },
   },
   test: {
@@ -36,7 +36,7 @@ module.exports = {
         : false,
     },
     migrations: {
-      directory: './backend/migrations',
+      directory: './migrations',
     },
   }
 };
