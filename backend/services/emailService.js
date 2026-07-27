@@ -7,17 +7,17 @@
  * 3. Create new API key
  * 4. npm install @getbrevo/brevo
  * 5. Set BREVO_API_KEY and EMAIL_FROM in .env
+ * 
+ * Note: @getbrevo/brevo v6+ uses BrevoClient instead of TransactionalEmailsApi
  */
 
 const brevo = require('@getbrevo/brevo');
 const { BACKEND_URL, FRONTEND_URL } = require('../config/environment');
 
-// Initialize Brevo API client
-const apiInstance = new brevo.TransactionalEmailsApi();
-apiInstance.setApiKey(
-  brevo.TransactionalEmailsApiApiKeys.apiKey,
-  process.env.BREVO_API_KEY
-);
+// Initialize Brevo API client (v6+ API)
+const apiClient = new brevo.BrevoClient({
+  apiKey: process.env.BREVO_API_KEY
+});
 
 // Email template for verification
 function createVerificationEmailTemplate(verificationUrl, username = 'User') {
@@ -196,18 +196,19 @@ async function sendVerificationEmail(email, token, username = 'User') {
   console.log(`📧 Sending verification email to ${email} via Brevo`);
   console.log(`🔗 Verification URL: ${verificationUrl}`);
   
-  const sendSmtpEmail = new brevo.SendSmtpEmail();
-  sendSmtpEmail.sender = { 
-    name: 'Des2 Library', 
-    email: process.env.EMAIL_FROM 
+  const sendSmtpEmail = {
+    sender: { 
+      name: 'Des2 Library', 
+      email: process.env.EMAIL_FROM 
+    },
+    to: [{ email }],
+    subject: 'Verify Your Email - Des2 Library',
+    htmlContent: createVerificationEmailTemplate(verificationUrl, username),
+    textContent: `Welcome to Des2 Library!\n\nHello ${username},\n\nPlease verify your email: ${verificationUrl}\n\nThis link expires in 24 hours.`
   };
-  sendSmtpEmail.to = [{ email }];
-  sendSmtpEmail.subject = 'Verify Your Email - Des2 Library';
-  sendSmtpEmail.htmlContent = createVerificationEmailTemplate(verificationUrl, username);
-  sendSmtpEmail.textContent = `Welcome to Des2 Library!\n\nHello ${username},\n\nPlease verify your email: ${verificationUrl}\n\nThis link expires in 24 hours.`;
 
   try {
-    const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
+    const data = await apiClient.transactionalEmails.sendTransacEmail(sendSmtpEmail);
     console.log('✅ Verification email sent successfully via Brevo:', data.messageId);
     return true;
   } catch (error) {
@@ -223,18 +224,19 @@ async function sendPasswordResetEmail(email, token, username = 'User') {
   console.log(`📧 Sending password reset email to ${email} via Brevo`);
   console.log(`🔗 Reset URL: ${resetUrl}`);
   
-  const sendSmtpEmail = new brevo.SendSmtpEmail();
-  sendSmtpEmail.sender = { 
-    name: 'Des2 Library', 
-    email: process.env.EMAIL_FROM 
+  const sendSmtpEmail = {
+    sender: { 
+      name: 'Des2 Library', 
+      email: process.env.EMAIL_FROM 
+    },
+    to: [{ email }],
+    subject: 'Reset Your Password - Des2 Library',
+    htmlContent: createPasswordResetEmailTemplate(resetUrl, username),
+    textContent: `Password Reset Request\n\nHello ${username},\n\nReset your password: ${resetUrl}\n\nThis link expires in 1 hour.`
   };
-  sendSmtpEmail.to = [{ email }];
-  sendSmtpEmail.subject = 'Reset Your Password - Des2 Library';
-  sendSmtpEmail.htmlContent = createPasswordResetEmailTemplate(resetUrl, username);
-  sendSmtpEmail.textContent = `Password Reset Request\n\nHello ${username},\n\nReset your password: ${resetUrl}\n\nThis link expires in 1 hour.`;
 
   try {
-    const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
+    const data = await apiClient.transactionalEmails.sendTransacEmail(sendSmtpEmail);
     console.log('✅ Password reset email sent successfully via Brevo:', data.messageId);
     return true;
   } catch (error) {
